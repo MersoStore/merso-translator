@@ -1,9 +1,11 @@
 package com.merso.gametranslate
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -129,13 +131,24 @@ object GuideUi {
 
         sectionTv.addView(sectionTitle(Str.p("شاشات Android TV وGoogle TV — عن طريق تطبيق الشاشة", "Android TV & Google TV — via the TV app")))
         val tvAppSteps = listOf(
-            Str.p("نزّل تطبيق Merso Translator TV على التلفزيون وثبّته (هتلاقيه في صفحة التحميل)", "Download and install the Merso Translator TV app on your TV (you'll find it on the download page)"),
+            Str.p("نزّل تطبيق Merso Translator TV على التلفزيون وثبّته", "Download and install the Merso Translator TV app on your TV"),
             Str.p("افتح التطبيق على التلفزيون وفعّل «العرض فوق التطبيقات» لما يطلبها منك", "Open the app on the TV and allow 'Display over other apps' when it asks"),
             Str.p("اضغط «تشغيل الترجمة»", "Tap 'Start translation'"),
             Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'"),
             Str.p("حوّل التلفزيون على مدخل HDMI بتاع الـPS5 — الترجمة هتظهر فوق اللعبة", "Switch the TV to the PS5 HDMI input — the subtitles will appear over the game")
         )
-        for ((i, step) in tvAppSteps.withIndex()) sectionTv.addView(stepRow(ctx, i + 1, step))
+        sectionTv.addView(stepRow(ctx, 1, tvAppSteps[0]))
+        sectionTv.addView(Ui.primaryButton(ctx, Str.p("تحميل تطبيق الشاشة", "Download the TV app")).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = ctx.dp(2); bottomMargin = ctx.dp(6) }
+            setOnClickListener {
+                try {
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/MersoStore/merso-translator/releases/download/v1.0/merso-translator-tv.apk")))
+                } catch (_: Exception) {}
+            }
+        })
+        for ((i, step) in tvAppSteps.drop(1).withIndex()) sectionTv.addView(stepRow(ctx, i + 2, step))
 
         sectionTv.addView(Ui.bodyText(ctx, Str.p("ملحوظة: خلي الموبايل والتلفزيون على نفس شبكة الواي فاي.", "Note: keep the phone and TV on the same Wi-Fi network."), 13f, Ui.MUTED).apply {
             gravity = Gravity.CENTER
