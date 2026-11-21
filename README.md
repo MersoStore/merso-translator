@@ -34,7 +34,7 @@
 
 التطبيق بيتبنى بخطوات يدوية (aapt2 + kotlinc + R8 + apksigner) — شوف `build.sh` و`keep-rules.txt` (المسارات خاصة بجهاز البناء الأصلي وهتحتاج تتعدل).
 
-التطبيق مش تابع لشركة Sony ولا لتطبيق سرد.
+التطبيق مش تابع لشركة Sony.
 
 ---
 
@@ -70,4 +70,4 @@ Because the app links AGPL-3.0 code, this source is published under the AGPL-3.0
 
 The app is built with a manual pipeline (aapt2 + kotlinc + R8 + apksigner); see `build.sh` and `keep-rules.txt` (paths are specific to the author's build machine and will need adjusting).
 
-This app is not affiliated with Sony or with the SARD app.
+This app is not affiliated with Sony.
