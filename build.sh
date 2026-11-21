@@ -34,7 +34,7 @@ done
 echo "== aapt2 link =="
 $BT/aapt2 link -o $OUT/base.apk -I $AJAR --manifest $PROJ/app/src/main/AndroidManifest.xml \
   --java $OUT/gen --extra-packages "$PKGS" --auto-add-overlay \
-  --min-sdk-version 26 --target-sdk-version 34 --version-code 19 --version-name 1.0 \
+  --min-sdk-version 26 --target-sdk-version 34 --version-code 20 --version-name 1.0 \
   $FLATS 2>$OUT/aapt2-link.log || { cat $OUT/aapt2-link.log; exit 1; }
 find $OUT/gen -name "*.java" | head
 
@@ -73,11 +73,11 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
     zip -q -0 unsigned.apk lib/$abi/*.so
   fi
 done
-$BT/zipalign -f -p 4 unsigned.apk aligned.apk
+LD_LIBRARY_PATH=/home/hatch/workspace/tools /home/hatch/workspace/tools/zipalign35 -f -P 16 4 unsigned.apk aligned.apk
 
 echo "== sign (release) =="
-$BT/apksigner sign --ks $AND/release.keystore --ks-key-alias merso --ks-pass file:$AND/release-keystore-password.txt --key-pass file:$AND/release-keystore-password.txt --out $OUT/merso-translate.apk aligned.apk
-$BT/apksigner verify --verbose $OUT/merso-translate.apk | head -3
+/home/hatch/workspace/tools/bt35/apksigner sign --ks $AND/release.keystore --ks-key-alias merso --ks-pass file:$AND/release-keystore-password.txt --key-pass file:$AND/release-keystore-password.txt --out $OUT/merso-translate.apk aligned.apk
+/home/hatch/workspace/tools/bt35/apksigner verify --verbose $OUT/merso-translate.apk | head -3
 $BT/aapt2 dump badging $OUT/merso-translate.apk | head -5
 ls -la $OUT/merso-translate.apk
 echo BUILD_OK
