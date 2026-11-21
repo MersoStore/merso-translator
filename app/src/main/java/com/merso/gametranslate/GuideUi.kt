@@ -104,10 +104,19 @@ object GuideUi {
     }
 
     private fun buildTvSection(ctx: Context, sectionTv: LinearLayout) {
+        fun sectionTitle(t: String) = TextView(ctx).apply {
+            text = t
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.parseColor(Ui.GOLD))
+            setPadding(0, ctx.dp(16), 0, ctx.dp(4))
+        }
+
         val ip = TvServer.localIp(ctx)
         val address = if (ip != null) "$ip:${TvServer.PORT}" else Str.p("الرقم اللي ظاهر في الصفحة الرئيسية", "the address shown on the home screen")
-        val steps = listOf(
-            Str.p("نوع الشاشة LG أو Android TV أو Google TV — كلهم نفس الخطوات", "TV type: LG, Android TV, or Google TV — same steps for all"),
+
+        sectionTv.addView(sectionTitle(Str.p("شاشات LG وسامسونج — عن طريق Media Station X", "LG & Samsung TVs — via Media Station X")))
+        val msxSteps = listOf(
             Str.p("حمّل تطبيق Media Station X على التلفزيون", "Install the Media Station X app on the TV"),
             Str.p("ادخل على الإعدادات Settings جوه التطبيق", "Open Settings inside the app"),
             Str.p("اختار Start Parameter", "Choose Start Parameter"),
@@ -116,7 +125,18 @@ object GuideUi {
             Str.p("اضغط على «افتح صفحة الترجمة» وبعدين Continue", "Tap 'Open Translation Page', then Continue"),
             Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'")
         )
-        for ((i, step) in steps.withIndex()) sectionTv.addView(stepRow(ctx, i + 1, step))
+        for ((i, step) in msxSteps.withIndex()) sectionTv.addView(stepRow(ctx, i + 1, step))
+
+        sectionTv.addView(sectionTitle(Str.p("شاشات Android TV وGoogle TV — عن طريق تطبيق الشاشة", "Android TV & Google TV — via the TV app")))
+        val tvAppSteps = listOf(
+            Str.p("نزّل تطبيق Merso Translator TV على التلفزيون وثبّته (هتلاقيه في صفحة التحميل)", "Download and install the Merso Translator TV app on your TV (you'll find it on the download page)"),
+            Str.p("افتح التطبيق على التلفزيون وفعّل «العرض فوق التطبيقات» لما يطلبها منك", "Open the app on the TV and allow 'Display over other apps' when it asks"),
+            Str.p("اضغط «تشغيل الترجمة»", "Tap 'Start translation'"),
+            Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'"),
+            Str.p("حوّل التلفزيون على مدخل HDMI بتاع الـPS5 — الترجمة هتظهر فوق اللعبة", "Switch the TV to the PS5 HDMI input — the subtitles will appear over the game")
+        )
+        for ((i, step) in tvAppSteps.withIndex()) sectionTv.addView(stepRow(ctx, i + 1, step))
+
         sectionTv.addView(Ui.bodyText(ctx, Str.p("ملحوظة: خلي الموبايل والتلفزيون على نفس شبكة الواي فاي.", "Note: keep the phone and TV on the same Wi-Fi network."), 13f, Ui.MUTED).apply {
             gravity = Gravity.CENTER
             setPadding(0, ctx.dp(12), 0, 0)
