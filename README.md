@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" alt="Merso Translator" width="160"></p>
+
 # Merso Translator
 
 Free Android app from the [Merso Gaming](https://www.youtube.com/@mersostore) channel that translates English game text to Arabic on screen while you play (PS5 Remote Play + camera OCR modes, Arabic captions shown on the TV).
