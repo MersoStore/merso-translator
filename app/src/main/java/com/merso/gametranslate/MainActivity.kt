@@ -302,7 +302,7 @@ class MainActivity : Activity() {
         howtoCard.addView(Ui.secondaryButton(this, Str.p("▶ افتح الفيديو في يوتيوب", "▶ Open the video on YouTube")).apply {
             setOnClickListener {
                 try {
-                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://youtu.be/AhgKETmy2lc")))
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://youtu.be/4Vu9-thSXhs")))
                 } catch (_: Exception) {}
             }
         })
@@ -1015,7 +1015,7 @@ class MainActivity : Activity() {
             howtoWeb?.onResume()
             if (!howtoLoaded) {
                 howtoLoaded = true
-                howtoWeb?.loadUrl("https://www.youtube.com/embed/AhgKETmy2lc?rel=0")
+                howtoWeb?.loadUrl("https://www.youtube.com/embed/4Vu9-thSXhs?rel=0")
             }
         } else {
             howtoWeb?.onPause()
