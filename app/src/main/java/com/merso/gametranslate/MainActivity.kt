@@ -1015,13 +1015,15 @@ class MainActivity : Activity() {
             howtoWeb?.onResume()
             if (!howtoLoaded) {
                 howtoLoaded = true
-                // Load the embed inside an HTML wrapper with a youtube.com base URL so the
-                // iframe request carries a valid Referer (fixes YouTube Error 153 in WebView).
+                // Load the embed inside an HTML wrapper with our own site as base URL so the
+                // iframe request carries a valid non-YouTube Referer. A youtube.com base makes
+                // YouTube block its own embed (Error 152); no base at all triggers Error 153.
                 val html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
                     "<style>html,body{margin:0;padding:0;background:#000;height:100%}iframe{border:0;width:100%;height:100%}</style></head>" +
                     "<body><iframe src=\"https://www.youtube.com/embed/4Vu9-thSXhs?rel=0&playsinline=1\" " +
+                    "referrerpolicy=\"strict-origin-when-cross-origin\" " +
                     "allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe></body></html>"
-                howtoWeb?.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
+                howtoWeb?.loadDataWithBaseURL("https://mersostore.github.io", html, "text/html", "UTF-8", null)
             }
         } else {
             howtoWeb?.onPause()
