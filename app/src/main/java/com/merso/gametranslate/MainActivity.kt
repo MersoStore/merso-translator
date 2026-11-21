@@ -135,9 +135,10 @@ class MainActivity : Activity() {
 
         // Step 2: TV pairing
         val step1Card = Ui.card(this)
-        val (h1, marks1) = stepHeader(2, Str.p("ربط الشاشة", "Screen Pairing")) { toggleStep1(!step1Open) }
+        val (h1, marks1) = stepHeader(2, Str.p("ربط الشاشة", "Screen Pairing")) {}
         step1Check = marks1.first
         step1Chevron = marks1.second
+        step1Chevron.visibility = View.GONE
         step1Card.addView(h1)
         step1Body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         step1Body.addView(Ui.bodyText(this, Str.p("اكتب كود الربط اللي ظاهر على صفحة التلفزيون", "Enter the pairing code shown on the TV page")))
@@ -257,16 +258,10 @@ class MainActivity : Activity() {
         translateScroll = ScrollView(this).apply { addView(root) }
         frame.addView(translateScroll)
 
-        // Initial step state
-        if (Prefs.code(this).length >= 4) {
-            showStep3(instant = true)
-            showStep4(instant = true)
-            toggleStep1(false)
-        } else {
-            step3Card.visibility = View.GONE
-            step2Card.visibility = View.GONE
-            toggleStep1(true)
-        }
+        // Initial step state — all 4 steps always visible
+        showStep3(instant = true)
+        showStep4(instant = true)
+        toggleStep1(true)
 
         // ---------- Guide tab ----------
         val guideRoot = GuideUi.build(this)
@@ -525,12 +520,6 @@ class MainActivity : Activity() {
                 }
                 if (Prefs.code(this@MainActivity).length >= 4) showStep3(instant = true)
                 step1Check.visibility = if (MqttSender.tvOnline) View.VISIBLE else View.GONE
-                if (MqttSender.tvOnline) {
-                    if (!step1CollapsedByTv) {
-                        step1CollapsedByTv = true
-                        toggleStep1(false)
-                    }
-                }
                 handler.postDelayed(this, 1500)
             }
         }
