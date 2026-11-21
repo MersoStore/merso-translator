@@ -13,9 +13,9 @@ class LicensesActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val version = try {
-            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.1"
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
         } catch (_: Exception) {
-            "1.1"
+            "1.0"
         }
         val root = Ui.screenRoot(this)
         root.addView(Ui.header(
@@ -28,8 +28,8 @@ class LicensesActivity : Activity() {
         val about = Ui.card(this)
         about.addView(Ui.cardTitle(this, Str.p("عن التطبيق", "About the app")))
         about.addView(Ui.bodyText(this, Str.p(
-            "تطبيق مجاني من قناة Merso Gaming (@mersostore) لترجمة كلام الألعاب الإنجليزي للعربي على الشاشة أثناء اللعب.\n\nالتطبيق مش تابع لشركة Sony ولا لتطبيق سرد.",
-            "A free app from the Merso Gaming channel (@mersostore) that translates English game text to Arabic on screen while you play.\n\nThis app is not affiliated with Sony or with the SARD app."
+            "تطبيق مجاني من قناة Merso Gaming (@mersostore) لترجمة كلام الألعاب الإنجليزي للعربي على الشاشة أثناء اللعب.\n\nالتطبيق مش تابع لشركة Sony.",
+            "A free app from the Merso Gaming channel (@mersostore) that translates English game text to Arabic on screen while you play.\n\nThis app is not affiliated with Sony."
         ), 15f, Ui.TEXT))
         about.addView(linkButton(Str.p("سورس التطبيق على GitHub", "App source on GitHub"), "https://github.com/MersoStore/merso-translator"))
         root.addView(about)
