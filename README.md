@@ -12,13 +12,15 @@
 
 - **ترجمة عن طريق Remote Play**: الريموت بلاي شغال جوه التطبيق نفسه، والتطبيق بيقرأ الكلام الإنجليزي ويترجمه ويبعته للتلفزيون.
 - **ترجمة عن طريق الكاميرا**: وجّه كاميرا التليفون على الشاشة والترجمة تظهر على تليفونك.
-- **الترجمة على التلفزيون**: بتظهر فوق اللعبة على شاشات LG وAndroid TV وGoogle TV (عن طريق Media Station X).
+- **الترجمة على التلفزيون**: بتظهر فوق اللعبة — على شاشات LG وسامسونج عن طريق Media Station X، وعلى شاشات Android TV وGoogle TV عن طريق تطبيق Merso Translator TV اللي بيتركّب على التلفزيون نفسه.
 - **تفعيل الريموت بلاي بدون PSN**: للحسابات المحلية على الأجهزة المعدلة.
 - التطبيق بالعربي والإنجليزي.
 
 ## التحميل
 
 من صفحة [Releases](https://github.com/MersoStore/merso-translator/releases) — حمّل ملف `merso-translate.apk` وثبّته على تليفونك الأندرويد.
+
+لو شاشتك Android TV أو Google TV، حمّل كمان ملف `merso-translator-tv.apk` وثبّته على التلفزيون نفسه: افتحه، فعّل «العرض فوق التطبيقات»، اضغط «تشغيل الترجمة»، واكتب الكود اللي هيظهر في تطبيق الموبايل. وبعدين حوّل التلفزيون على مدخل HDMI بتاع الـ PS5 والترجمة هتظهر فوق اللعبة. سورس تطبيق الشاشة موجود في فولدر `tv/`.
 
 شرح طريقة الاستخدام بالفيديو: [شرح تعريب جميع ألعاب PS5 — تطبيق Merso Translator](https://youtu.be/4Vu9-thSXhs)
 
@@ -48,13 +50,15 @@ A free Android app from the [Merso Gaming](https://www.youtube.com/@mersostore) 
 
 - **Remote Play translation**: Remote Play runs inside the app itself; the app reads the English text, translates it, and sends it to the TV.
 - **Camera translation**: Point your phone camera at the screen and the translation shows on your phone.
-- **Captions on the TV**: Shown over the game on LG, Android TV, and Google TV (via Media Station X).
+- **Captions on the TV**: Shown over the game — on LG & Samsung TVs via Media Station X, and on Android TV & Google TV via the Merso Translator TV app installed on the TV itself.
 - **Remote Play activation without PSN**: For local accounts on modded consoles.
 - Bilingual app (Arabic / English).
 
 ## Download
 
 From the [Releases](https://github.com/MersoStore/merso-translator/releases) page — download `merso-translate.apk` and install it on your Android phone.
+
+If your TV runs Android TV or Google TV, also download `merso-translator-tv.apk` and install it on the TV itself: open it, allow 'Display over other apps', tap 'Start translation', and enter the code shown in the phone app. Then switch the TV to the PS5 HDMI input and the subtitles will appear over the game. The TV app source is in the `tv/` folder.
 
 Video tutorial: [How to Arabize all PS5 games — Merso Translator app](https://youtu.be/4Vu9-thSXhs)
 
