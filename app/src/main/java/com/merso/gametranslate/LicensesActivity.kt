@@ -1,11 +1,12 @@
 package com.merso.gametranslate
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.text.method.LinkMovementMethod
-import android.text.util.Linkify
+import android.view.Gravity
+import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.TextView
 import com.merso.gametranslate.Ui.dp
 
 class LicensesActivity : Activity() {
@@ -22,62 +23,93 @@ class LicensesActivity : Activity() {
             Str.p("حول / التراخيص", "About / Licenses"),
             Str.p("مرسو للترجمة — الإصدار $version", "Merso Translator — Version $version")
         ))
-        val card = Ui.card(this)
-        val body = TextView(this).apply {
-            text = Str.p(AR_TEXT, EN_TEXT)
-            textSize = 15f
-            setTextColor(android.graphics.Color.parseColor(Ui.TEXT))
-            setLineSpacing(0f, 1.25f)
-            setPadding(dp(4), dp(4), dp(4), dp(4))
-        }
-        Linkify.addLinks(body, Linkify.WEB_URLS)
-        body.movementMethod = LinkMovementMethod.getInstance()
-        card.addView(body)
-        root.addView(card)
+
+        // About the app
+        val about = Ui.card(this)
+        about.addView(Ui.cardTitle(this, Str.p("عن التطبيق", "About the app")))
+        about.addView(Ui.bodyText(this, Str.p(
+            "تطبيق مجاني من قناة Merso Gaming (@mersostore) لترجمة كلام الألعاب الإنجليزي للعربي على الشاشة أثناء اللعب.\n\nالتطبيق مش تابع لشركة Sony ولا لتطبيق سرد.",
+            "A free app from the Merso Gaming channel (@mersostore) that translates English game text to Arabic on screen while you play.\n\nThis app is not affiliated with Sony or with the SARD app."
+        ), 15f, Ui.TEXT))
+        about.addView(linkButton(Str.p("سورس التطبيق على GitHub", "App source on GitHub"), "https://github.com/MersoStore/merso-translator"))
+        root.addView(about)
+
+        // Chiaki
+        val chiaki = Ui.card(this)
+        chiaki.addView(Ui.cardTitle(this, Str.p("Chiaki — محرك الريموت بلاي", "Chiaki — Remote Play engine")))
+        chiaki.addView(Ui.bodyText(this, Str.p(
+            "بيستخدم التطبيق محرك Chiaki مفتوح المصدر لتشغيل الريموت بلاي.",
+            "This app uses the open-source Chiaki engine for Remote Play."
+        ), 15f, Ui.TEXT))
+        chiaki.addView(Ui.bodyText(this, Str.p(
+            "© مساهمو مشروع Chiaki\nالرخصة: GNU Affero General Public License v3 (AGPL-3.0)",
+            "© Chiaki project contributors\nLicense: GNU Affero General Public License v3 (AGPL-3.0)"
+        ), 14f, Ui.SUB))
+        chiaki.addView(buttonRow(
+            Str.p("نص الرخصة", "License text") to "https://www.gnu.org/licenses/agpl-3.0.html",
+            Str.p("السورس", "Source") to "https://git.sr.ht/~thestr4ng3r/chiaki"
+        ))
+        root.addView(chiaki)
+
+        // PS5 Account Tools
+        val tools = Ui.card(this)
+        tools.addView(Ui.cardTitle(this, Str.p("PS5 Account Tools — التفعيل بدون PSN", "PS5 Account Tools — no-PSN activation")))
+        tools.addView(Ui.bodyText(this, Str.p(
+            "بيستخدم التطبيق أداة PS5 Account Tools (الإصدار 1.2) المدمجة فيه لتفعيل الحسابات المحلية أوفلاين والتسجيل الوهمي.",
+            "This app embeds PS5 Account Tools (version 1.2) for offline local-account activation and fake sign-in."
+        ), 15f, Ui.TEXT))
+        tools.addView(Ui.bodyText(this, Str.p(
+            "© MangoScango ومساهموها\nالرخصة: GNU General Public License v3 (GPL-3.0)",
+            "© MangoScango and contributors\nLicense: GNU General Public License v3 (GPL-3.0)"
+        ), 14f, Ui.SUB))
+        tools.addView(buttonRow(
+            Str.p("نص الرخصة", "License text") to "https://www.gnu.org/licenses/gpl-3.0.html",
+            Str.p("السورس", "Source") to "https://github.com/MangoScango/ps5-account-tools"
+        ))
+        root.addView(tools)
+
+        // Notes
+        val notes = Ui.card(this)
+        notes.addView(Ui.cardTitle(this, Str.p("ملحوظات", "Notes")))
+        notes.addView(Ui.bodyText(this, Str.p(
+            "• تسجيل دخول سوني بيتم في صفحة سوني الرسمية جوه التطبيق، والتطبيق مش بيخزن كلمة السر.\n• الترجمة بتتم بخدمات ترجمة مجانية على النت، فممكن تبقى بطيئة أو تقف مؤقتًا لو الخدمة وصلت لحدها.",
+            "• Sony sign-in happens on Sony's official page inside the app; the app does not store your password.\n• Translation uses free online services, so it may be slow or pause temporarily if a service hits its limit."
+        ), 14f, Ui.SUB))
+        root.addView(notes)
+
         val scroll = ScrollView(this).apply { addView(root) }
         setContentView(scroll)
         Ui.animateChildren(root)
     }
 
-    override fun onBackPressed() {
-        Nav.goHome(this)
+    private fun openUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: Exception) {}
     }
 
-    companion object {
-        private const val AR_TEXT = """حول التطبيق
-تطبيق مجاني من قناة Merso Gaming (@mersostore) لترجمة كلام الألعاب الإنجليزي للعربي على الشاشة أثناء اللعب.
-التطبيق مش تابع لشركة Sony ولا لتطبيق سرد.
+    private fun linkButton(text: String, url: String) = Ui.secondaryButton(this, text).apply {
+        setOnClickListener { openUrl(url) }
+    }
 
-التراخيص
-بيستخدم التطبيق محرك Chiaki مفتوح المصدر لتشغيل الريموت بلاي.
-Chiaki © مساهمو مشروع Chiaki، ومرخّص تحت رخصة GNU Affero General Public License v3 (AGPL-3.0).
-نص الرخصة الكامل: https://www.gnu.org/licenses/agpl-3.0.html
-سورس Chiaki: https://git.sr.ht/~thestr4ng3r/chiaki
+    private fun buttonRow(first: Pair<String, String>, second: Pair<String, String>): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, 0)
+        }
+        row.addView(Ui.smallButton(this, first.first).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) }
+            setOnClickListener { openUrl(first.second) }
+        })
+        row.addView(Ui.smallButton(this, second.first).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnClickListener { openUrl(second.second) }
+        })
+        return row
+    }
 
-بيستخدم التطبيق كمان أداة PS5 Account Tools (الإصدار 1.2) المدمجة في التطبيق لتفعيل الحسابات المحلية أوفلاين والتسجيل الوهمي (خاصية التفعيل بدون PSN).
-PS5 Account Tools © MangoScango ومساهموها، ومرخّصة تحت رخصة GNU General Public License v3 (GPL-3.0).
-نص الرخصة الكامل: https://www.gnu.org/licenses/gpl-3.0.html
-سورس الأداة: https://github.com/MangoScango/ps5-account-tools
-
-تسجيل دخول سوني بيتم في صفحة سوني الرسمية جوا التطبيق، والتطبيق مش بيخزن كلمة السر.
-الترجمة بتتم بخدمات ترجمة مجانية على النت، فممكن تبقى بطيئة أو تقف مؤقتًا لو الخدمة وصلت لحدها."""
-
-        private const val EN_TEXT = """About
-A free app from the Merso Gaming channel (@mersostore) that translates English game text to Arabic on screen while you play.
-This app is not affiliated with Sony or with the SARD app.
-
-Licenses
-This app uses the open-source Chiaki engine for Remote Play.
-Chiaki © Chiaki project contributors, licensed under the GNU Affero General Public License v3 (AGPL-3.0).
-Full license text: https://www.gnu.org/licenses/agpl-3.0.html
-Chiaki source: https://git.sr.ht/~thestr4ng3r/chiaki
-
-This app also embeds PS5 Account Tools (version 1.2) for offline local-account activation and fake sign-in (the no-PSN activation feature).
-PS5 Account Tools © MangoScango and contributors, licensed under the GNU General Public License v3 (GPL-3.0).
-Full license text: https://www.gnu.org/licenses/gpl-3.0.html
-Tool source: https://github.com/MangoScango/ps5-account-tools
-
-Sony sign-in happens on Sony's official page inside the app; the app does not store your password.
-Translation uses free online services, so it may be slow or pause temporarily if a service hits its limit."""
+    override fun onBackPressed() {
+        Nav.goHome(this)
     }
 }
