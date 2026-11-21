@@ -20,7 +20,7 @@
 
 من صفحة [Releases](https://github.com/MersoStore/merso-translator/releases) — حمّل ملف `merso-translate.apk` وثبّته على تليفونك الأندرويد.
 
-شرح طريقة الاستخدام بالفيديو: [Merso Gaming على يوتيوب](https://www.youtube.com/@mersostore)
+شرح طريقة الاستخدام بالفيديو: [شرح تعريب جميع ألعاب PS5 — تطبيق Merso Translator](https://youtu.be/AhgKETmy2lc)
 
 ## التراخيص
 
@@ -56,7 +56,7 @@ A free Android app from the [Merso Gaming](https://www.youtube.com/@mersostore) 
 
 From the [Releases](https://github.com/MersoStore/merso-translator/releases) page — download `merso-translate.apk` and install it on your Android phone.
 
-Video tutorial: [Merso Gaming on YouTube](https://www.youtube.com/@mersostore)
+Video tutorial: [How to Arabize all PS5 games — Merso Translator app](https://youtu.be/AhgKETmy2lc)
 
 ## Licenses
 
