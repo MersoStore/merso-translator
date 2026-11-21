@@ -1,0 +1,99 @@
+diff --git a/android/app/src/main/cpp/audio-output.cpp b/android/app/src/main/cpp/audio-output.cpp
+index 53157f1..5bdc8a3 100644
+--- a/android/app/src/main/cpp/audio-output.cpp
++++ b/android/app/src/main/cpp/audio-output.cpp
+@@ -14,6 +14,13 @@
+ 
+ using AudioBuffer = CircularBuffer<BUFFER_CHUNKS_COUNT, BUFFER_CHUNK_SIZE>;
+ 
++static volatile int g_audio_muted = 0;
++
++extern "C" void android_chiaki_audio_output_set_muted(int muted)
++{
++	g_audio_muted = muted ? 1 : 0;
++}
++
+ class AudioOutput;
+ 
+ class AudioOutputCallback: public oboe::AudioStreamCallback
+@@ -84,6 +91,8 @@ extern "C" void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_c
+ 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+ 
+ 	size_t buf_size = samples_count * sizeof(int16_t);
++	if(g_audio_muted)
++		memset(buf, 0, buf_size);
+ 	size_t pushed = ao->buf.Push(reinterpret_cast<uint8_t *>(buf), buf_size);
+ 	if(pushed < buf_size)
+ 		CHIAKI_LOGW(ao->log, "Audio Output Buffer Overflow!");
+diff --git a/android/app/src/main/cpp/audio-output.h b/android/app/src/main/cpp/audio-output.h
+index b521ebe..2a1cd68 100644
+--- a/android/app/src/main/cpp/audio-output.h
++++ b/android/app/src/main/cpp/audio-output.h
+@@ -14,6 +14,7 @@ void *android_chiaki_audio_output_new(ChiakiLog *log);
+ void android_chiaki_audio_output_free(void *audio_output);
+ void android_chiaki_audio_output_settings(uint32_t channels, uint32_t rate, void *audio_output);
+ void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output);
++void android_chiaki_audio_output_set_muted(int muted);
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/android/app/src/main/cpp/chiaki-jni.c b/android/app/src/main/cpp/chiaki-jni.c
+index 9b14b60..590d262 100644
+--- a/android/app/src/main/cpp/chiaki-jni.c
++++ b/android/app/src/main/cpp/chiaki-jni.c
+@@ -832,3 +832,10 @@ JNIEXPORT void JNICALL JNI_FCN(registFree)(JNIEnv *env, jobject obj, jlong ptr)
+ 	android_chiaki_regist_fini_partial(env, regist);
+ 	free(regist);
+ }
++
++JNIEXPORT void JNICALL Java_com_metallic_chiaki_lib_ChiakiNative_setAudioMuted(JNIEnv *env, jobject thiz, jboolean muted)
++{
++	(void)env;
++	(void)thiz;
++	android_chiaki_audio_output_set_muted(muted ? 1 : 0);
++}
+diff --git a/android/app/src/main/cpp/video-decoder.c b/android/app/src/main/cpp/video-decoder.c
+index 1146ad8..c1a4792 100644
+--- a/android/app/src/main/cpp/video-decoder.c
++++ b/android/app/src/main/cpp/video-decoder.c
+@@ -65,9 +65,13 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
+ 	{
+ 		if(decoder->codec)
+ 		{
++			// kill_decoder locks the mutex itself; unlock first to avoid deadlock
++			chiaki_mutex_unlock(&decoder->codec_mutex);
+ 			kill_decoder(decoder);
+ 			CHIAKI_LOGI(decoder->log, "Decoder shut down after surface was removed");
++			return;
+ 		}
++		chiaki_mutex_unlock(&decoder->codec_mutex);
+ 		return;
+ 	}
+ 
+@@ -76,7 +80,17 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
+ #if __ANDROID_API__ >= 23
+ 		CHIAKI_LOGI(decoder->log, "Video decoder already initialized, swapping surface");
+ 		ANativeWindow *new_window = surface ? ANativeWindow_fromSurface(env, surface) : NULL;
+-		AMediaCodec_setOutputSurface(decoder->codec, new_window);
++		// The return value MUST be checked: setOutputSurface fails
++		// (silently, if ignored) when the new surface's gralloc usage
++		// is incompatible with the surface the codec was configured
++		// with — e.g. swapping from a SurfaceTexture surface to an
++		// ImageReader surface on Qualcomm codecs results in zero
++		// output buffers ever being delivered, with no other error.
++		media_status_t sr = AMediaCodec_setOutputSurface(decoder->codec, new_window);
++		if(sr != AMEDIA_OK)
++			CHIAKI_LOGE(decoder->log, "AMediaCodec_setOutputSurface() failed: %d (new surface incompatible?)", (int)sr);
++		else
++			CHIAKI_LOGI(decoder->log, "AMediaCodec_setOutputSurface() succeeded");
+ 		ANativeWindow_release(decoder->window);
+ 		decoder->window = new_window;
+ #else
+@@ -109,6 +123,7 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
+ 		AMediaFormat_delete(format);
+ 		goto error_codec;
+ 	}
++	CHIAKI_LOGI(decoder->log, "AMediaCodec_configure() succeeded with output surface");
+ 
+ 	r = AMediaCodec_start(decoder->codec);
+ 	AMediaFormat_delete(format);

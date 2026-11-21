@@ -1,0 +1,91 @@
+2026-11-20T07:02:29.674+0200 [INFO] [org.gradle.internal.nativeintegration.services.NativeServices] Initialized native services in: /home/hatch/workspace/tools/gradle-home/native
+2026-11-20T07:02:29.775+0200 [INFO] [org.gradle.internal.nativeintegration.services.NativeServices] Initialized jansi services in: /home/hatch/workspace/tools/gradle-home/native
+2026-11-20T07:02:29.810+0200 [LIFECYCLE] [org.gradle.launcher.cli.DebugLoggerWarningAction] 
+#############################################################################
+   WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+   Debug level logging will leak security sensitive information!
+
+   For more details, please refer to https://docs.gradle.org/8.7/userguide/logging.html#sec:debug_security in the Gradle documentation.
+#############################################################################
+
+2026-11-20T07:02:29.945+0200 [INFO] [org.gradle.internal.jvm.inspection.DefaultJvmMetadataDetector] Received JVM installation metadata from '/home/hatch/workspace/tools/jdk': {JAVA_HOME=/home/hatch/workspace/tools/jdk, JAVA_VERSION=17.0.21.1, JAVA_VENDOR=Eclipse Adoptium, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=17.0.21.1+2, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=17.0.21.1+2, VM_VENDOR=Eclipse Adoptium, OS_ARCH=amd64}
+2026-11-20T07:02:30.225+0200 [DEBUG] [org.gradle.launcher.daemon.client.DaemonClient] Executing build f9ec9e2d-05a9-4cfd-b727-8e6e77b0ab00 in daemon client {pid=10417}
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding IP addresses for network interface host0
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Is this a loopback interface? false
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding remote address /fd8b:4f84:7d32:99:0:0:0:2%host0
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding remote address /fe80:0:0:0:70dc:7cff:fe34:2ffd%host0
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding remote address /198.19.0.2
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding IP addresses for network interface lo
+2026-11-20T07:02:30.233+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Is this a loopback interface? true
+2026-11-20T07:02:30.240+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding loopback address /0:0:0:0:0:0:0:1%lo
+2026-11-20T07:02:30.240+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.InetAddresses] Adding loopback address /127.0.0.1
+2026-11-20T07:02:30.273+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire shared lock on daemon addresses registry.
+2026-11-20T07:02:30.276+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-20T07:02:30.279+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-20T07:02:30.282+0200 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Getting daemon stop events
+2026-11-20T07:02:30.283+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire shared lock on daemon addresses registry.
+2026-11-20T07:02:30.283+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-20T07:02:30.283+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-20T07:02:30.284+0200 [INFO] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Removing 0 daemon stop events from registry
+2026-11-20T07:02:30.285+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire exclusive lock on daemon addresses registry.
+2026-11-20T07:02:30.286+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-20T07:02:30.288+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-20T07:02:30.336+0200 [INFO] [org.gradle.launcher.daemon.client.DefaultDaemonConnector] Previous Daemon (9768) stopped at Fri Nov 20 06:58:32 EET 2026 after the daemon was no longer found in the daemon registry
+2026-11-20T07:02:30.336+0200 [INFO] [org.gradle.launcher.daemon.client.DefaultDaemonConnector] Previous Daemon (9883) stopped at Fri Nov 20 06:58:47 EET 2026 after the daemon was no longer found in the daemon registry
+2026-11-20T07:02:30.336+0200 [INFO] [org.gradle.launcher.daemon.client.DefaultDaemonConnector] Previous Daemon (10049) stopped at Fri Nov 20 06:59:15 EET 2026 after the daemon was no longer found in the daemon registry
+2026-11-20T07:02:30.337+0200 [LIFECYCLE] [org.gradle.launcher.daemon.client.DefaultDaemonConnector] Starting a Gradle Daemon, 3 stopped Daemons could not be reused, use --status for details
+2026-11-20T07:02:30.365+0200 [DEBUG] [org.gradle.launcher.daemon.client.DefaultDaemonStarter] Using daemon args: [/home/hatch/workspace/tools/jdk/bin/java, --add-opens=java.base/java.util=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/java.lang.invoke=ALL-UNNAMED, --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED, --add-opens=java.base/java.nio.charset=ALL-UNNAMED, --add-opens=java.base/java.net=ALL-UNNAMED, --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED, -Xmx640m, -Dfile.encoding=UTF-8, -Duser.country=US, -Duser.language=en, -Duser.variant, -cp, /home/hatch/workspace/tools/gradle-8.7/lib/gradle-launcher-8.7.jar, -javaagent:/home/hatch/workspace/tools/gradle-8.7/lib/agents/gradle-instrumentation-agent-8.7.jar]
+2026-11-20T07:02:30.370+0200 [DEBUG] [org.gradle.launcher.daemon.client.DefaultDaemonStarter] Starting daemon process: workingDir = /home/hatch/workspace/tools/gradle-home/daemon/8.7, daemonArgs: [/home/hatch/workspace/tools/jdk/bin/java, --add-opens=java.base/java.util=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/java.lang.invoke=ALL-UNNAMED, --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED, --add-opens=java.base/java.nio.charset=ALL-UNNAMED, --add-opens=java.base/java.net=ALL-UNNAMED, --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED, -Xmx640m, -Dfile.encoding=UTF-8, -Duser.country=US, -Duser.language=en, -Duser.variant, -cp, /home/hatch/workspace/tools/gradle-8.7/lib/gradle-launcher-8.7.jar, -javaagent:/home/hatch/workspace/tools/gradle-8.7/lib/agents/gradle-instrumentation-agent-8.7.jar, org.gradle.launcher.daemon.bootstrap.GradleDaemon, 8.7]
+2026-11-20T07:02:30.390+0200 [INFO] [org.gradle.process.internal.DefaultExecHandle] Starting process 'Gradle build daemon'. Working directory: /home/hatch/workspace/tools/gradle-home/daemon/8.7 Command: /home/hatch/workspace/tools/jdk/bin/java --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED -Xmx640m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -cp /home/hatch/workspace/tools/gradle-8.7/lib/gradle-launcher-8.7.jar -javaagent:/home/hatch/workspace/tools/gradle-8.7/lib/agents/gradle-instrumentation-agent-8.7.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.7
+2026-11-20T07:02:30.390+0200 [DEBUG] [org.gradle.process.internal.DefaultExecHandle] Changing state to: STARTING
+2026-11-20T07:02:30.393+0200 [DEBUG] [org.gradle.process.internal.DefaultExecHandle] Waiting until process started: Gradle build daemon.
+2026-11-20T07:02:30.424+0200 [DEBUG] [org.gradle.process.internal.DefaultExecHandle] Changing state to: STARTED
+2026-11-20T07:02:30.424+0200 [DEBUG] [org.gradle.process.internal.ExecHandleRunner] waiting until streams are handled...
+2026-11-20T07:02:30.424+0200 [INFO] [org.gradle.process.internal.DefaultExecHandle] Successfully started process 'Gradle build daemon'
+2026-11-20T07:02:30.424+0200 [DEBUG] [org.gradle.launcher.daemon.client.DefaultDaemonStarter] Gradle daemon process is starting. Waiting for the daemon to detach...
+2026-11-20T07:02:30.424+0200 [DEBUG] [org.gradle.launcher.daemon.bootstrap.DaemonOutputConsumer] Starting consuming the daemon process output.
+2026-11-20T07:02:32.700+0200 [DEBUG] [org.gradle.launcher.daemon.bootstrap.DaemonOutputConsumer] daemon out: Daemon started. About to close the streams. Daemon details: 0100053130343533002461346363383661322d303336612d343034372d613932632d3363393232366563353161396d0b81668ecc4f6cb4e8869485293dd7000093ed00000001000000047f00000100472f686f6d652f68617463682f776f726b73706163652f746f6f6c732f677261646c652d686f6d652f6461656d6f6e2f382e372f6461656d6f6e2d31303435332e6f75742e6c6f67
+2026-11-20T07:02:32.702+0200 [DEBUG] [org.gradle.process.internal.DefaultExecHandle] Changing state to: DETACHED
+2026-11-20T07:02:32.702+0200 [DEBUG] [org.gradle.process.internal.DefaultExecHandle] Process 'Gradle build daemon' finished with exit value 0 (state: DETACHED)
+2026-11-20T07:02:32.702+0200 [DEBUG] [org.gradle.launcher.daemon.client.DefaultDaemonStarter] Gradle daemon process is now detached.
+2026-11-20T07:02:32.705+0200 [INFO] [org.gradle.launcher.daemon.client.DefaultDaemonStarter] An attempt to start the daemon took 2.335 secs.
+2026-11-20T07:02:32.706+0200 [DEBUG] [org.gradle.launcher.daemon.client.DefaultDaemonConnector] Started Gradle daemon DaemonStartupInfo{pid=10453, uid=a4cc86a2-036a-4047-a92c-3c9226ec51a9, address=[6d0b8166-8ecc-4f6c-b4e8-869485293dd7 port:37869, addresses:[/127.0.0.1]], diagnostics={pid=10453, daemonLog=/home/hatch/workspace/tools/gradle-home/daemon/8.7/daemon-10453.out.log}}
+2026-11-20T07:02:32.706+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire shared lock on daemon addresses registry.
+2026-11-20T07:02:32.706+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-20T07:02:32.707+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-20T07:02:32.707+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.TcpOutgoingConnector] Attempting to connect to [6d0b8166-8ecc-4f6c-b4e8-869485293dd7 port:37869, addresses:[/127.0.0.1]].
+2026-11-20T07:02:32.707+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.TcpOutgoingConnector] Trying to connect to address /127.0.0.1.
+2026-11-20T07:02:32.712+0200 [DEBUG] [org.gradle.internal.remote.internal.inet.TcpOutgoingConnector] Connected to address /127.0.0.1:37869.
+2026-11-20T07:02:32.732+0200 [DEBUG] [org.gradle.launcher.daemon.client.DaemonClient] Connected to daemon DaemonInfo{pid=10453, address=[6d0b8166-8ecc-4f6c-b4e8-869485293dd7 port:37869, addresses:[/127.0.0.1]], state=Busy, lastBusy=1795150952691, context=DefaultDaemonContext[uid=a4cc86a2-036a-4047-a92c-3c9226ec51a9,javaHome=/home/hatch/workspace/tools/jdk,daemonRegistryDir=/home/hatch/workspace/tools/gradle-home/daemon,pid=10453,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx640m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]}. Dispatching request Build{id=f9ec9e2d-05a9-4cfd-b727-8e6e77b0ab00, currentDir=/home/hatch/workspace/android/merso-translate}.
+2026-11-20T07:02:32.732+0200 [DEBUG] [org.gradle.launcher.daemon.client.DaemonClientConnection] thread 1: dispatching class org.gradle.launcher.daemon.protocol.Build
+2026-11-20T07:02:32.758+0200 [DEBUG] [org.gradle.launcher.daemon.client.DaemonClientConnection] Problem receiving message to the daemon. Performing 'on failure' operation...
+2026-11-20T07:02:32.759+0200 [INFO] [org.gradle.launcher.daemon.client.DefaultDaemonConnector] Removing daemon from the registry due to communication failure. Daemon information: DaemonInfo{pid=10453, address=[6d0b8166-8ecc-4f6c-b4e8-869485293dd7 port:37869, addresses:[/127.0.0.1]], state=Busy, lastBusy=1795150952691, context=DefaultDaemonContext[uid=a4cc86a2-036a-4047-a92c-3c9226ec51a9,javaHome=/home/hatch/workspace/tools/jdk,daemonRegistryDir=/home/hatch/workspace/tools/gradle-home/daemon,pid=10453,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx640m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]}
+2026-11-20T07:02:32.759+0200 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Storing daemon stop event with timestamp 1795150952759
+2026-11-20T07:02:32.759+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire exclusive lock on daemon addresses registry.
+2026-11-20T07:02:32.760+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-20T07:02:32.760+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-20T07:02:32.761+0200 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Removing daemon address: [6d0b8166-8ecc-4f6c-b4e8-869485293dd7 port:37869, addresses:[/127.0.0.1]]
+2026-11-20T07:02:32.761+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire exclusive lock on daemon addresses registry.
+2026-11-20T07:02:32.761+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-20T07:02:32.763+0200 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-20T07:02:32.763+0200 [DEBUG] [org.gradle.launcher.daemon.client.DaemonClientConnection] thread 1: connection stop
+2026-11-20T07:02:32.764+0200 [LIFECYCLE] [org.gradle.launcher.cli.DebugLoggerWarningAction] 
+#############################################################################
+   WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+   Debug level logging will leak security sensitive information!
+
+   For more details, please refer to https://docs.gradle.org/8.7/userguide/logging.html#sec:debug_security in the Gradle documentation.
+#############################################################################
+
+2026-11-20T07:02:32.772+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] 
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] FAILURE: Build failed with an exception.
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] 
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] * What went wrong:
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] Could not receive a message from the daemon.
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] 
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] * Try:
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] > Run with --stacktrace option to get the stack trace.
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] > Run with --scan to get full insights.
+2026-11-20T07:02:32.773+0200 [ERROR] [org.gradle.internal.buildevents.BuildExceptionReporter] > Get more help at https://help.gradle.org.

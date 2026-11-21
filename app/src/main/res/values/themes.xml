@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Merso" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#FFC400</item>
+        <item name="android:colorPrimaryDark">#0B0E14</item>
+        <item name="android:colorAccent">#FFC400</item>
+        <item name="android:windowBackground">#0B0E14</item>
+        <item name="android:statusBarColor">#0B0E14</item>
+    </style>
+</resources>

@@ -1,0 +1,16 @@
+-dontshrink
+-dontoptimize
+-ignorewarnings
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-keep class com.merso.gametranslate.CrashApp { *; }
+-keep class com.merso.gametranslate.*Activity { *; }
+-keep class com.merso.gametranslate.CaptureService { *; }
+-keep class com.merso.gametranslate.StreamService { *; }
+-keep class com.metallic.chiaki.lib.** { *; }
+-keep class com.google.** { *; }
+-keep class org.eclipse.paho.** { *; }
+-keep class kotlin.** { *; }
+-keep class kotlinx.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-keepclassmembers enum * { public static **[] values(); public static ** valueOf(java.lang.String); }
+-dontwarn **
