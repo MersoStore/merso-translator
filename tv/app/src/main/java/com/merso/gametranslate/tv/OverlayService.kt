@@ -146,13 +146,26 @@ class OverlayService : Service() {
         }
     }
 
+    // Cairo (Black weight) bundled in assets — the caption font.
+    private var cachedTypeface: Typeface? = null
+    private fun captionTypeface(): Typeface {
+        cachedTypeface?.let { return it }
+        val tf = try {
+            Typeface.createFromAsset(assets, "cairo.ttf")
+        } catch (_: Exception) {
+            Typeface.DEFAULT_BOLD
+        }
+        cachedTypeface = tf
+        return tf
+    }
+
     private fun getCaptionView(box: Int): TextView {
         captionViews[box]?.let { return it }
         val screenW = resources.displayMetrics.widthPixels
         val tv = TextView(this).apply {
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = captionTypeface()
             setShadowLayer(8f, 0f, 0f, Color.BLACK)
             setPadding(dp(28), dp(14), dp(28), dp(14))
             maxWidth = (screenW * 0.8f).toInt()
@@ -180,7 +193,9 @@ class OverlayService : Service() {
             else -> 25f
         }
         tv.textSize = sizeSp
-        tv.setTextColor(if (TvPrefs.styleColor(this) == "yellow") Color.parseColor("#FFD400") else Color.WHITE)
+        if (tv.tag != "custom") {
+            tv.setTextColor(if (TvPrefs.styleColor(this) == "yellow") Color.parseColor("#FFD400") else Color.WHITE)
+        }
         val alpha = (TvPrefs.styleBg(this).coerceIn(0, 100) * 255 / 100)
         tv.background = GradientDrawable().apply {
             cornerRadius = dp(12).toFloat()
@@ -188,10 +203,19 @@ class OverlayService : Service() {
         }
     }
 
-    private fun showCaption(ar: String, box: Int, x: Float, y: Float) {
+    private fun showCaption(ar: String, box: Int, x: Float, y: Float, colorHex: String?) {
         main.post {
             val tv = getCaptionView(box)
             tv.text = ar
+            if (colorHex != null) {
+                try {
+                    tv.setTextColor(Color.parseColor(colorHex))
+                    tv.tag = "custom"
+                } catch (_: Exception) {}
+            } else {
+                tv.tag = null
+                applyStyleTo(tv)
+            }
             tv.visibility = View.VISIBLE
             val screenW = resources.displayMetrics.widthPixels
             val screenH = resources.displayMetrics.heightPixels
@@ -200,7 +224,11 @@ class OverlayService : Service() {
                 tv.y = (screenH * y - tv.height / 2f).coerceIn(0f, maxOf(0f, (screenH - tv.height).toFloat()))
             }
             hideRunnables[box]?.let { main.removeCallbacks(it) }
-            val readMs = maxOf(3500L, minOf(10000L, 2500L + ar.length * 80L))
+            val readMs = when (TvPrefs.styleDur(this)) {
+                "S" -> maxOf(2500L, minOf(7000L, 1800L + ar.length * 55L))
+                "L" -> maxOf(5000L, minOf(15000L, 3500L + ar.length * 110L))
+                else -> maxOf(3500L, minOf(10000L, 2500L + ar.length * 80L))
+            }
             val r = Runnable { tv.visibility = View.GONE }
             hideRunnables[box] = r
             main.postDelayed(r, readMs)
@@ -239,7 +267,8 @@ class OverlayService : Service() {
                                             this@OverlayService,
                                             if (msg.has("size")) msg.getString("size") else null,
                                             if (msg.has("color")) msg.getString("color") else null,
-                                            if (msg.has("bg")) msg.getInt("bg") else null
+                                            if (msg.has("bg")) msg.getInt("bg") else null,
+                                            if (msg.has("dur")) msg.getString("dur") else null
                                         )
                                         main.post { applyStyle() }
                                     }
@@ -247,14 +276,28 @@ class OverlayService : Service() {
                                         if (msg.optString("role") == "phone") phoneOnline = true
                                     }
                                     topic?.endsWith("/sub") == true -> {
-                                        val ar = msg.optString("ar")
-                                        if (ar.isNotBlank()) {
-                                            phoneOnline = true
-                                            lastCaptionAt = System.currentTimeMillis()
-                                            val box = if (msg.has("box")) msg.getInt("box") else 0
-                                            val x = if (msg.has("x")) msg.getDouble("x").toFloat() else 0.5f
-                                            val y = if (msg.has("y")) msg.getDouble("y").toFloat() else 0.9f
-                                            showCaption(ar, box, x, y)
+                                        if (msg.optInt("clear") == 1) {
+                                            val g = if (msg.has("box")) msg.getInt("box") else -1
+                                            main.post {
+                                                for ((k, v) in captionViews) {
+                                                    if (g < 0 || k == g || (k >= g * 10 && k < g * 10 + 10)) {
+                                                        v.visibility = View.GONE
+                                                        hideRunnables[k]?.let { main.removeCallbacks(it) }
+                                                        hideRunnables.remove(k)
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            val ar = msg.optString("ar")
+                                            if (ar.isNotBlank()) {
+                                                phoneOnline = true
+                                                lastCaptionAt = System.currentTimeMillis()
+                                                val box = if (msg.has("box")) msg.getInt("box") else 0
+                                                val x = if (msg.has("x")) msg.getDouble("x").toFloat() else 0.5f
+                                                val y = if (msg.has("y")) msg.getDouble("y").toFloat() else 0.9f
+                                                val color = msg.optString("color").ifBlank { null }
+                                                showCaption(ar, box, x, y, color)
+                                            }
                                         }
                                     }
                                 }
