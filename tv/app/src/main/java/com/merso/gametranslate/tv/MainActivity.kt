@@ -121,6 +121,11 @@ class MainActivity : Activity() {
         }
         btnRow.addView(toggleBtn)
 
+        val updateBtn = bigButton("التحقق من التحديثات\nCheck for updates") {
+            TvUpdater.checkManual(this)
+        }
+        btnRow.addView(updateBtn)
+
         root.addView(TextView(this).apply {
             text = "الخطوات: ١) فعّل العرض فوق التطبيقات  ٢) اضغط تشغيل  ٣) حوّل الشاشة على مدخل HDMI بتاع الـPS5 — الترجمة هتظهر فوق اللعبة\n" +
                 "Steps: 1) Allow display over other apps  2) Press Start  3) Switch the TV to the PS5 HDMI input — subtitles will appear over the game"
@@ -133,6 +138,7 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(root) })
         toggleBtn.requestFocus()
         refreshUi()
+        TvUpdater.checkOnLaunch(this)
     }
 
     override fun onResume() {
