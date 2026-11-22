@@ -106,13 +106,14 @@ class CaptureService : Service() {
             try {
                 val bitmap = imageToBitmap(image, width, height)
                 if (bitmap != null) {
-                    val cropped = OcrEngine.cropBitmap(bitmap, Prefs.crop(this@CaptureService))
-                    if (cropped !== bitmap) bitmap.recycle()
-                    OcrEngine.processFrame(cropped) { en, ar ->
+                    val boxes = Prefs.crops(this@CaptureService)
+                    OcrEngine.processBoxes(bitmap, boxes) { i, en, ar ->
                         lastEnglish = en
                         lastArabic = ar
-                        MqttSender.sendCaption(this@CaptureService, en, ar)
+                        val b = boxes[i]
+                        MqttSender.sendCaption(this@CaptureService, en, ar, i, (b[0] + b[2]) / 2f, (b[1] + b[3]) / 2f)
                     }
+                    bitmap.recycle()
                 }
             } catch (_: Exception) {
             } finally {
