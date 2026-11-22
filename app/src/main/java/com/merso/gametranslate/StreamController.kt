@@ -31,6 +31,24 @@ class StreamController(
     }
 
     private val main = Handler(Looper.getMainLooper())
+    // Last full stream frame, kept so the Settings crop preview can show
+    // the game picture behind the crop frame.
+    private val frameLock = Any()
+    @Volatile private var latestFrame: Bitmap? = null
+
+    /** A copy of the most recent stream frame, or null if none yet. */
+    fun snapshotFrame(): Bitmap? = synchronized(frameLock) {
+        val f = latestFrame
+        if (f == null || f.isRecycled) null else f.copy(Bitmap.Config.ARGB_8888, false)
+    }
+
+    /** Grab a fresh frame straight from the stream surface (live preview). */
+    fun grabFrame(width: Int, height: Int): Bitmap? {
+        val tv = texture ?: return null
+        return if (tv.isAvailable) {
+            try { tv.getBitmap(width, height) } catch (_: Exception) { null }
+        } else null
+    }
     // Native setSurface can block; never call it on the main thread (ANR in PiP)
     private val surfaceExec = Executors.newSingleThreadExecutor()
     private val ocrExec = Executors.newSingleThreadExecutor()
@@ -434,6 +452,12 @@ class StreamController(
                         diag.append(Str.p(" | خطأ ترجمة: ${Translator.lastError.take(60)}", " | Translation error: ${Translator.lastError.take(60)}"))
                     main.post { onDebug(diag.toString()) }
                     if (bmp != null) {
+                        synchronized(frameLock) {
+                            val copy = bmp.copy(Bitmap.Config.ARGB_8888, false)
+                            val old = latestFrame
+                            latestFrame = copy
+                            if (old != null && old !== copy) old.recycle()
+                        }
                         ocrExec.execute {
                             try {
                                 val cropped = OcrEngine.cropBitmap(bmp, Prefs.crop(ctx))
