@@ -147,7 +147,7 @@ object TvServer {
   #status{font-size:1.8vw;color:#8A93A3;margin-top:1vw;text-shadow:0 0 6px #000}
   #inputs{position:absolute;top:3%;right:2%;z-index:4}
   #inputs button{font-size:1.6vw;padding:.6vw 1.2vw;margin:.3vw;background:#222;color:#FFC400;border:1px solid #FFC400;border-radius:8px}
-  #caption{position:absolute;bottom:3%;left:15%;right:15%;text-align:center;z-index:3;
+  .cap{position:absolute;transform:translate(-50%,-50%);max-width:80%;text-align:center;z-index:3;
     font-size:2.6vw;line-height:1.4;color:#fff;
     text-shadow:0 0 8px #000,0 0 8px #000,2px 2px 4px #000;
     background:rgba(0,0,0,.45);border-radius:10px;padding:.6vw 1.2vw;display:none}
@@ -168,7 +168,7 @@ object TvServer {
   <div id="code">------</div>
   <div id="status">%CONNECTING%</div>
 </div>
-<div id="caption"></div>
+<div id="caps"></div>
 <script>
 var uiHidden = false;
 function toggleUi(){
@@ -198,8 +198,25 @@ setInput(1);
   localStorage.setItem('merso_code', code);
   document.getElementById('code').textContent = code;
   var statusEl = document.getElementById('status');
-  var capEl = document.getElementById('caption');
-  var hideTimer = null;
+  var capsEl = document.getElementById('caps');
+  var caps = {};
+  var timers = {};
+  var curStyle = {fontSize:'2.6vw', color:'#fff', background:'rgba(0,0,0,.45)'};
+  function applyStyle(el){
+    el.style.fontSize = curStyle.fontSize;
+    el.style.color = curStyle.color;
+    el.style.background = curStyle.background;
+  }
+  function getCap(box){
+    if (!caps[box]) {
+      var d = document.createElement('div');
+      d.className = 'cap';
+      applyStyle(d);
+      capsEl.appendChild(d);
+      caps[box] = d;
+    }
+    return caps[box];
+  }
   var client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {connectTimeout: 10000});
   client.on('connect', function(){
     statusEl.textContent = '%WAITPHONE%';
@@ -214,9 +231,10 @@ setInput(1);
       var msg = JSON.parse(payload.toString());
       if (topic.slice(-6) === '/style') {
         var sizes = {S:'1.8vw', M:'2.6vw', L:'3.4vw', H:'4.4vw'};
-        if (msg.size && sizes[msg.size]) capEl.style.fontSize = sizes[msg.size];
-        if (msg.color) capEl.style.color = (msg.color === 'yellow') ? '#FFD400' : '#fff';
-        if (typeof msg.bg === 'number') capEl.style.background = 'rgba(0,0,0,' + (msg.bg/100) + ')';
+        if (msg.size && sizes[msg.size]) curStyle.fontSize = sizes[msg.size];
+        if (msg.color) curStyle.color = (msg.color === 'yellow') ? '#FFD400' : '#fff';
+        if (typeof msg.bg === 'number') curStyle.background = 'rgba(0,0,0,' + (msg.bg/100) + ')';
+        for (var k in caps) applyStyle(caps[k]);
         return;
       }
       if (msg.role === 'phone') {
@@ -224,12 +242,18 @@ setInput(1);
         return;
       }
       if (msg.ar) {
-        capEl.textContent = msg.ar;
-        capEl.style.display = 'block';
+        var box = (typeof msg.box === 'number') ? msg.box : 0;
+        var x = (typeof msg.x === 'number') ? msg.x : 0.5;
+        var y = (typeof msg.y === 'number') ? msg.y : 0.9;
+        var el = getCap(box);
+        el.textContent = msg.ar;
+        el.style.left = (x * 100) + '%';
+        el.style.top = (y * 100) + '%';
+        el.style.display = 'block';
         statusEl.textContent = '%PHONECONN%';
-        if (hideTimer) clearTimeout(hideTimer);
+        if (timers[box]) clearTimeout(timers[box]);
         var readMs = Math.max(3500, Math.min(10000, 2500 + msg.ar.length * 80));
-        hideTimer = setTimeout(function(){ capEl.style.display='none'; }, readMs);
+        timers[box] = setTimeout(function(){ el.style.display='none'; }, readMs);
       }
     } catch(e){}
   });
