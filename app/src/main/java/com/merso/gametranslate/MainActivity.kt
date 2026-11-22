@@ -2,6 +2,7 @@ package com.merso.gametranslate
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -58,6 +59,8 @@ class MainActivity : Activity() {
         try {
             buildUi()
             Updater.checkOnLaunch(this)
+            val tab = intent?.getIntExtra("tab", -1) ?: -1
+            if (tab >= 0) selectTab(tab)
         } catch (e: Throwable) {
             val tv = TextView(this).apply {
                 text = "خطأ: ${e.javaClass.simpleName}: ${e.message}"
@@ -226,6 +229,7 @@ class MainActivity : Activity() {
         })
         root.addView(step2Card)
 
+        TvServer.init(this)
         TvServer.start()
 
         root.addView(Ui.bodyText(this, Str.p("من قناة Merso Gaming", "From Merso Gaming channel"), 13f, Ui.MUTED).apply {
@@ -934,6 +938,98 @@ class MainActivity : Activity() {
             }
         })
         areaCard.addView(boxBtnRow)
+
+        // Game profiles: named box layouts, switch per game
+        val profileLabel = Ui.bodyText(this, "", 14f, Ui.GOLD)
+        fun refreshProfileLabel() {
+            val active = Prefs.activeProfile(this@MainActivity)
+            profileLabel.text = if (active.isEmpty())
+                Str.p("البروفايل الحالي: افتراضي", "Current profile: Default")
+            else
+                Str.p("البروفايل الحالي: $active", "Current profile: $active")
+        }
+        refreshProfileLabel()
+        areaCard.addView(profileLabel)
+        val profBtnRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        profBtnRow.addView(Ui.secondaryButton(this, Str.p("📂 البروفايلات", "📂 Profiles")).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginEnd = dp(6) }
+            setOnClickListener {
+                val profs = Prefs.profiles(this@MainActivity)
+                if (profs.isEmpty()) {
+                    Toast.makeText(this@MainActivity, Str.p("لسه مفيش بروفايلات محفوظة", "No saved profiles yet"), Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val list = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(16), dp(8), dp(16), dp(8))
+                }
+                val dlg = AlertDialog.Builder(this@MainActivity)
+                    .setTitle(Str.p("📂 اختار بروفايل", "📂 Choose a Profile"))
+                    .setView(ScrollView(this@MainActivity).apply { addView(list) })
+                    .setNegativeButton(Str.p("إلغاء", "Cancel"), null)
+                    .create()
+                for ((name, boxes) in profs) {
+                    val row = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                    row.addView(Ui.secondaryButton(this@MainActivity, name).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        setOnClickListener {
+                            Prefs.setCrops(this@MainActivity, boxes.map { it.copyOf() })
+                            Prefs.setActiveProfile(this@MainActivity, name)
+                            selectedBox = 0
+                            refreshSeek()
+                            refreshProfileLabel()
+                            dlg.dismiss()
+                            Toast.makeText(this@MainActivity, Str.p("اتحمّل بروفايل $name ✓", "Profile $name loaded ✓"), Toast.LENGTH_SHORT).show()
+                        }
+                    })
+                    row.addView(Ui.secondaryButton(this@MainActivity, "🗑").apply {
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { marginStart = dp(6) }
+                        setOnClickListener {
+                            Prefs.deleteProfile(this@MainActivity, name)
+                            refreshProfileLabel()
+                            dlg.dismiss()
+                            Toast.makeText(this@MainActivity, Str.p("اتمسح بروفايل $name", "Profile $name deleted"), Toast.LENGTH_SHORT).show()
+                        }
+                    })
+                    list.addView(row)
+                }
+                dlg.show()
+            }
+        })
+        profBtnRow.addView(Ui.secondaryButton(this, Str.p("💾 حفظ كبروفايل", "💾 Save as Profile")).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = dp(6) }
+            setOnClickListener {
+                val input = Ui.inputField(this@MainActivity, Str.p("اسم اللعبة…", "Game name…"), number = false)
+                input.setText(Prefs.activeProfile(this@MainActivity))
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(Str.p("💾 حفظ كبروفايل", "💾 Save as Profile"))
+                    .setView(input)
+                    .setPositiveButton(Str.p("حفظ", "Save")) { _, _ ->
+                        val name = input.text.toString().trim()
+                        if (name.isEmpty()) {
+                            Toast.makeText(this@MainActivity, Str.p("اكتب اسم البروفايل الأول", "Enter a profile name first"), Toast.LENGTH_SHORT).show()
+                        } else {
+                            Prefs.saveProfile(this@MainActivity, name, Prefs.crops(this@MainActivity))
+                            Prefs.setActiveProfile(this@MainActivity, name)
+                            refreshProfileLabel()
+                            Toast.makeText(this@MainActivity, Str.p("اتحفظ بروفايل $name ✓", "Profile $name saved ✓"), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNegativeButton(Str.p("إلغاء", "Cancel"), null)
+                    .show()
+            }
+        })
+        areaCard.addView(profBtnRow)
         areaCard.addView(Ui.secondaryButton(this, Str.p("رجوع للوضع الافتراضي", "Reset to Default")).apply {
             setOnClickListener {
                 Prefs.setCrops(this@MainActivity, listOf(floatArrayOf(0.15f, 0.75f, 0.85f, 0.99f)))
@@ -968,13 +1064,39 @@ class MainActivity : Activity() {
             Prefs.setTvSize(this, sizes[i])
             MqttSender.publishStyle(this)
         })
-        lookCard.addView(Ui.bodyText(this, Str.p("لون الخط", "Text color"), 15f, Ui.TEXT))
+        lookCard.addView(Ui.bodyText(this, Str.p("لون الترجمة", "Caption color"), 15f, Ui.TEXT))
+        val manualColorLabel = Ui.bodyText(this, Str.p("لون الخط", "Text color"), 15f, Ui.TEXT)
         val colors = listOf("white", "yellow")
         val colorLabels = listOf(Str.p("أبيض", "White"), Str.p("أصفر", "Yellow"))
-        lookCard.addView(segmented(colorLabels, colors.indexOf(Prefs.tvColor(this)).coerceAtLeast(0)) { i ->
+        val manualColorSeg = segmented(colorLabels, colors.indexOf(Prefs.tvColor(this)).coerceAtLeast(0)) { i ->
             Prefs.setTvColor(this, colors[i])
             MqttSender.publishStyle(this)
+        }
+        // In auto mode the manual color row is locked (dimmed + disabled);
+        // switching back to manual unlocks it.
+        fun refreshColorMode() {
+            val auto = Prefs.autoColor(this)
+            manualColorSeg.alpha = if (auto) 0.35f else 1f
+            manualColorLabel.alpha = if (auto) 0.35f else 1f
+            for (j in 0 until manualColorSeg.childCount) {
+                manualColorSeg.getChildAt(j).isEnabled = !auto
+            }
+        }
+        val autoLabels = listOf(
+            Str.p("تلقائي (لون اللعبة)", "Auto (game color)"), Str.p("يدوي", "Manual")
+        )
+        lookCard.addView(segmented(autoLabels, if (Prefs.autoColor(this)) 0 else 1) { i ->
+            Prefs.setAutoColor(this, i == 0)
+            refreshColorMode()
         })
+        lookCard.addView(Ui.bodyText(
+            this,
+            Str.p("في الوضع التلقائي الترجمة بتظهر على التلفزيون بنفس لون نص اللعبة. واللون اليدوي اللي تحت بيُستخدم لو التلقائي مقدرش يحدد اللون.", "In auto mode the translation appears on the TV in the same color as the game's own text. The manual color below is used when auto can't detect a color."),
+            13f, Ui.MUTED
+        ))
+        lookCard.addView(manualColorLabel)
+        lookCard.addView(manualColorSeg)
+        refreshColorMode()
         lookCard.addView(Ui.bodyText(this, Str.p("سواد الخلفية", "Background darkness"), 15f, Ui.TEXT))
         val bgRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1009,6 +1131,20 @@ class MainActivity : Activity() {
         bgRow.addView(bgSeek)
         bgRow.addView(bgPct)
         lookCard.addView(bgRow)
+        lookCard.addView(Ui.bodyText(this, Str.p("مدة بقاء الترجمة", "Caption duration"), 15f, Ui.TEXT))
+        val durs = listOf("S", "M", "L")
+        val durLabels = listOf(Str.p("قصيرة", "Short"), Str.p("عادية", "Normal"), Str.p("طويلة", "Long"))
+        lookCard.addView(segmented(durLabels, durs.indexOf(Prefs.tvDur(this)).coerceAtLeast(0)) { i ->
+            Prefs.setTvDur(this, durs[i])
+            MqttSender.publishStyle(this)
+        })
+        lookCard.addView(Ui.bodyText(this, Str.p("نطق الترجمة صوتيًا", "Speak translations aloud"), 15f, Ui.TEXT))
+        lookCard.addView(segmented(
+            listOf(Str.p("إيقاف", "Off"), Str.p("تشغيل", "On")),
+            if (Prefs.ttsOn(this)) 1 else 0
+        ) { i ->
+            Prefs.setTtsOn(this, i == 1)
+        })
         lookCard.addView(Ui.secondaryButton(this, Str.p("تجربة على الشاشة", "Test on TV")).apply {
             setOnClickListener {
                 MqttSender.connect(this@MainActivity)
@@ -1153,6 +1289,13 @@ class MainActivity : Activity() {
             else -> null
         }
         if (content != null) Ui.animateChildren(content)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val tab = intent?.getIntExtra("tab", -1) ?: -1
+        if (tab >= 0) selectTab(tab)
     }
 
     override fun onBackPressed() {
