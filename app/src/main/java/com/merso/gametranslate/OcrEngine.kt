@@ -12,14 +12,23 @@ object OcrEngine {
     }
     private val exec = Executors.newSingleThreadExecutor()
 
-    @Volatile private var lastText: String = ""
-    @Volatile private var lastSentAt: Long = 0
-    @Volatile private var candidate: String = ""
-    @Volatile private var candidateCount: Int = 0
     @Volatile var lastRawText: String = ""
     @Volatile var lastError: String = ""
-    @Volatile private var staticText: String = ""
-    @Volatile private var staticSince: Long = 0
+
+    // Per-stream stabilization state. The main pipeline (single frame) uses
+    // mainState; each crop box gets its own Stabilizer so boxes never fight
+    // over the candidate/last-sent tracking.
+    class Stabilizer {
+        @Volatile var lastText: String = ""
+        @Volatile var lastSentAt: Long = 0
+        @Volatile var candidate: String = ""
+        @Volatile var candidateCount: Int = 0
+        @Volatile var staticText: String = ""
+        @Volatile var staticSince: Long = 0
+    }
+
+    private val mainState = Stabilizer()
+    private var boxStates: List<Stabilizer> = emptyList()
 
     private fun normalize(t: String): String =
         t.lowercase().replace(Regex("[^a-z0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
@@ -96,66 +105,85 @@ object OcrEngine {
     // immediate=true (camera mode): handheld reads are noisy, so send the first
     // good read instead of waiting for 2 identical frames.
     fun processFrame(bitmap: Bitmap, immediate: Boolean = false, onResult: (String, String) -> Unit) {
-        recognize(bitmap) { en ->
-            if (!looksLikeSubtitle(en, lenient = immediate)) {
-                candidate = ""
-                candidateCount = 0
-                return@recognize
-            }
-            if (immediate) {
-                val now = System.currentTimeMillis()
-                if (similar(en, lastText) && now - lastSentAt < 15000) return@recognize
-                lastText = en
-                lastSentAt = now
-                exec.execute {
-                    val ar = Translator.translateEnToAr(en)
-                    if (ar.isNotBlank()) onResult(en, ar)
-                }
-                return@recognize
-            }
-            // Static UI text (titles, logos) stays forever; subtitles change.
-            // If the same line sits unchanged for over 6 seconds, stop sending it.
-            val nowMs = System.currentTimeMillis()
-            if (normalize(en) == normalize(staticText)) {
-                if (nowMs - staticSince > 6000) return@recognize
-            } else {
-                staticText = en
-                staticSince = nowMs
-            }
-            // Accept text seen identically in 2 consecutive frames so partial
-            // reads don't flicker; but flush a long line seen once when the
-            // next frame already moved on, so fast subtitles aren't missed.
-            if (similar(en, candidate)) {
-                candidateCount++
-            } else {
-                val prev = candidate
-                val prevCount = candidateCount
-                candidate = en
-                candidateCount = 1
-                if (prevCount == 1 && prev.length >= 12 && !similar(prev, lastText)) {
-                    lastText = prev
-                    lastSentAt = System.currentTimeMillis()
-                    exec.execute {
-                        val ar = Translator.translateEnToAr(prev)
-                        if (ar.isNotBlank()) onResult(prev, ar)
-                    }
-                }
-                return@recognize
-            }
-            if (candidateCount < 2) return@recognize
-            val now = System.currentTimeMillis()
-            // Locked: same sentence (even read slightly differently) is never
-            // re-translated; only a clearly different sentence replaces it.
-            if (similar(candidate, lastText) && now - lastSentAt < 15000) return@recognize
-            val toSend = candidate
-            lastText = toSend
-            lastSentAt = now
-            exec.execute {
-                val ar = Translator.translateEnToAr(toSend)
-                if (ar.isNotBlank()) onResult(toSend, ar)
+        recognize(bitmap) { en -> processText(en, immediate, mainState, onResult) }
+    }
+
+    // Multi-box pipeline: each crop box is OCR'd and stabilized on its own,
+    // and results are reported per box (index, en, ar) so the TV can show
+    // each translation at its box's position.
+    fun processBoxes(src: Bitmap, boxes: List<FloatArray>, onResult: (Int, String, String) -> Unit) {
+        if (boxes.isEmpty()) return
+        if (boxStates.size != boxes.size) boxStates = List(boxes.size) { Stabilizer() }
+        boxes.forEachIndexed { i, frac ->
+            val cropped = cropBitmap(src, frac)
+            recognize(cropped) { txt ->
+                processText(txt, false, boxStates[i]) { en, ar -> onResult(i, en, ar) }
             }
         }
     }
 
-    fun reset() { lastText = "" }
+    fun processText(en: String, immediate: Boolean, st: Stabilizer, onResult: (String, String) -> Unit) {
+        if (!looksLikeSubtitle(en, lenient = immediate)) {
+            st.candidate = ""
+            st.candidateCount = 0
+            return
+        }
+        if (immediate) {
+            val now = System.currentTimeMillis()
+            if (similar(en, st.lastText) && now - st.lastSentAt < 15000) return
+            st.lastText = en
+            st.lastSentAt = now
+            exec.execute {
+                val ar = Translator.translateEnToAr(en)
+                if (ar.isNotBlank()) onResult(en, ar)
+            }
+            return
+        }
+        // Static UI text (titles, logos) stays forever; subtitles change.
+        // If the same line sits unchanged for over 6 seconds, stop sending it.
+        val nowMs = System.currentTimeMillis()
+        if (normalize(en) == normalize(st.staticText)) {
+            if (nowMs - st.staticSince > 6000) return
+        } else {
+            st.staticText = en
+            st.staticSince = nowMs
+        }
+        // Accept text seen identically in 2 consecutive frames so partial
+        // reads don't flicker; but flush a long line seen once when the
+        // next frame already moved on, so fast subtitles aren't missed.
+        if (similar(en, st.candidate)) {
+            st.candidateCount++
+        } else {
+            val prev = st.candidate
+            val prevCount = st.candidateCount
+            st.candidate = en
+            st.candidateCount = 1
+            if (prevCount == 1 && prev.length >= 12 && !similar(prev, st.lastText)) {
+                st.lastText = prev
+                st.lastSentAt = System.currentTimeMillis()
+                exec.execute {
+                    val ar = Translator.translateEnToAr(prev)
+                    if (ar.isNotBlank()) onResult(prev, ar)
+                }
+            }
+            return
+        }
+        if (st.candidateCount < 2) return
+        val now = System.currentTimeMillis()
+        // Locked: same sentence (even read slightly differently) is never
+        // re-translated; only a clearly different sentence replaces it.
+        if (similar(st.candidate, st.lastText) && now - st.lastSentAt < 15000) return
+        val toSend = st.candidate
+        st.lastText = toSend
+        st.lastSentAt = now
+        exec.execute {
+            val ar = Translator.translateEnToAr(toSend)
+            if (ar.isNotBlank()) onResult(toSend, ar)
+        }
+    }
+
+    fun reset() {
+        mainState.lastText = ""
+        boxStates.forEach { it.lastText = "" }
+    }
 }
