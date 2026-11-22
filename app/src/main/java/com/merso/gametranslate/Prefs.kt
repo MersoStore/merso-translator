@@ -76,6 +76,10 @@ object Prefs {
     fun tvColor(ctx: Context): String = sp(ctx).getString("tv_color", "white") ?: "white"
     fun setTvColor(ctx: Context, v: String) = sp(ctx).edit().putString("tv_color", v).apply()
 
+    // Auto caption color: match the game's own text color (sampled from the frame)
+    fun autoColor(ctx: Context): Boolean = sp(ctx).getBoolean("auto_color", true)
+    fun setAutoColor(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("auto_color", v).apply()
+
     fun tvBg(ctx: Context): Int = sp(ctx).getInt("tv_bg", 45)
     fun setTvBg(ctx: Context, v: Int) = sp(ctx).edit().putInt("tv_bg", v).apply()
 
@@ -112,5 +116,65 @@ object Prefs {
             e.putString("crop3", "${boxes[0][0]},${boxes[0][1]},${boxes[0][2]},${boxes[0][3]}")
         }
         e.apply()
+        // Keep the active game profile in sync with the live boxes
+        val active = activeProfile(ctx)
+        if (active.isNotEmpty()) writeProfile(ctx, active, s)
     }
+
+    // Caption display duration on TV: S short / M normal / L long
+    fun tvDur(ctx: Context): String = sp(ctx).getString("tv_dur", "M") ?: "M"
+    fun setTvDur(ctx: Context, v: String) = sp(ctx).edit().putString("tv_dur", v).apply()
+
+    // Speak translations aloud on the phone (TTS)
+    fun ttsOn(ctx: Context): Boolean = sp(ctx).getBoolean("tts_on", false)
+    fun setTtsOn(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("tts_on", v).apply()
+
+    // ---------- Game profiles (named box layouts) ----------
+    // Stored as JSON object: {"<name>": "l,t,r,b;l,t,r,b", ...}
+    fun profiles(ctx: Context): LinkedHashMap<String, List<FloatArray>> {
+        val out = LinkedHashMap<String, List<FloatArray>>()
+        try {
+            val raw = sp(ctx).getString("profiles", "") ?: ""
+            if (raw.isBlank()) return out
+            val obj = org.json.JSONObject(raw)
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val name = keys.next()
+                val boxes = obj.optString(name).split(";").mapNotNull { part ->
+                    val p = part.split(",").mapNotNull { it.toFloatOrNull() }
+                    if (p.size == 4) floatArrayOf(p[0], p[1], p[2], p[3]) else null
+                }
+                if (boxes.isNotEmpty()) out[name] = boxes
+            }
+        } catch (_: Exception) {}
+        return out
+    }
+
+    private fun writeProfile(ctx: Context, name: String, boxesStr: String) {
+        try {
+            val raw = sp(ctx).getString("profiles", "") ?: ""
+            val obj = if (raw.isBlank()) org.json.JSONObject() else org.json.JSONObject(raw)
+            obj.put(name, boxesStr)
+            sp(ctx).edit().putString("profiles", obj.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+    fun saveProfile(ctx: Context, name: String, boxes: List<FloatArray>) {
+        val s = boxes.joinToString(";") { "${it[0]},${it[1]},${it[2]},${it[3]}" }
+        writeProfile(ctx, name, s)
+    }
+
+    fun deleteProfile(ctx: Context, name: String) {
+        try {
+            val raw = sp(ctx).getString("profiles", "") ?: ""
+            if (raw.isBlank()) return
+            val obj = org.json.JSONObject(raw)
+            obj.remove(name)
+            sp(ctx).edit().putString("profiles", obj.toString()).apply()
+            if (activeProfile(ctx) == name) setActiveProfile(ctx, "")
+        } catch (_: Exception) {}
+    }
+
+    fun activeProfile(ctx: Context): String = sp(ctx).getString("active_profile", "") ?: ""
+    fun setActiveProfile(ctx: Context, v: String) = sp(ctx).edit().putString("active_profile", v).apply()
 }
