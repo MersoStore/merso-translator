@@ -460,12 +460,13 @@ class StreamController(
                         }
                         ocrExec.execute {
                             try {
-                                val cropped = OcrEngine.cropBitmap(bmp, Prefs.crop(ctx))
-                                if (cropped !== bmp) bmp.recycle()
-                                OcrEngine.processFrame(cropped) { en, ar ->
-                                    MqttSender.sendCaption(ctx, en, ar)
+                                val boxes = Prefs.crops(ctx)
+                                OcrEngine.processBoxes(bmp, boxes) { i, en, ar ->
+                                    val b = boxes[i]
+                                    MqttSender.sendCaption(ctx, en, ar, i, (b[0] + b[2]) / 2f, (b[1] + b[3]) / 2f)
                                     main.post { onCaption(ar) }
                                 }
+                                bmp.recycle()
                             } catch (_: Exception) {}
                         }
                     }
