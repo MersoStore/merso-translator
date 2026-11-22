@@ -90,4 +90,27 @@ object Prefs {
 
     fun setCrop(ctx: Context, l: Float, t: Float, r: Float, b: Float) =
         sp(ctx).edit().putString("crop3", "$l,$t,$r,$b").apply()
+
+    // Multiple subtitle boxes (each translated on its own area), stored as
+    // "l,t,r,b;l,t,r,b;...". Falls back to the legacy single crop3 box.
+    fun crops(ctx: Context): List<FloatArray> {
+        val s = sp(ctx).getString("crops", "") ?: ""
+        if (s.isNotBlank()) {
+            val boxes = s.split(";").mapNotNull { part ->
+                val p = part.split(",").mapNotNull { it.toFloatOrNull() }
+                if (p.size == 4) floatArrayOf(p[0], p[1], p[2], p[3]) else null
+            }
+            if (boxes.isNotEmpty()) return boxes
+        }
+        return listOf(crop(ctx))
+    }
+
+    fun setCrops(ctx: Context, boxes: List<FloatArray>) {
+        val s = boxes.joinToString(";") { "${it[0]},${it[1]},${it[2]},${it[3]}" }
+        val e = sp(ctx).edit().putString("crops", s)
+        if (boxes.isNotEmpty()) {
+            e.putString("crop3", "${boxes[0][0]},${boxes[0][1]},${boxes[0][2]},${boxes[0][3]}")
+        }
+        e.apply()
+    }
 }
