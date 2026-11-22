@@ -188,5 +188,29 @@ object GuideUi {
         ))
         sectionPs5.addView(stepRow(ctx, 1, Str.p("روح على الإعدادات ← النظام ← توفير الطاقة ← الميزات المتاحة في وضع الراحة", "Go to Settings → System → Power Saving → Features Available in Rest Mode")))
         sectionPs5.addView(stepRow(ctx, 2, Str.p("فعّل «البقاء متصلًا بالإنترنت» و«تمكين تشغيل PS5 من الشبكة»", "Enable 'Stay Connected to the Internet' and 'Enable Turning On PS5 from Network'")))
+
+        sectionPs5.addView(sectionTitle(Str.p("٤) الحساب الوهمي — للأجهزة المعدلة بدون PSN", "4) Fake Account — for Modded Consoles without PSN")))
+        sectionPs5.addView(Ui.bodyText(
+            ctx,
+            Str.p("لو جهازك معدل والحساب الثانوي محلي وعمره ما اتربط بـPSN، الجهاز هيطلب تسجيل دخول ومش هيشغل الريموت بلاي. التفعيل الوهمي بيحلها من جوه التطبيق: بيفعّل الحساب أوفلاين ويعمل تسجيل دخول وهمي، فالريموت بلاي يشتغل من غير سوني خالص.", "If your console is modded and the second account is local and was never linked to PSN, the console demands a sign-in and Remote Play won't work. Fake activation fixes it from inside the app: it activates the account offline and performs a fake sign-in, so Remote Play works with no Sony at all."),
+            14f, Ui.SUB
+        ))
+        sectionPs5.addView(Ui.bodyText(
+            ctx,
+            Str.p("⚠️ قبل ما تبدأ: اعمل نسخة احتياطية من حفظات اللعب (Saves) الأول — تغيير رقم الحساب ممكن يفصل الحفظات عن الحساب. ومتفعّلش الحساب الأساسي لو هو حساب PSN حقيقي متفعل أصلًا؛ الأحسن تعمل مستخدم محلي جديد على الجهاز وتفعّله هو.", "⚠️ Before you start: back up your game saves first — changing the account ID can disassociate saves from the account. And don't activate the main account if it is already a legit PSN-activated account; best to create a new local user on the console and activate that one."),
+            14f, "#FFC400"
+        ))
+        sectionPs5.addView(stepRow(ctx, 1, Str.p("شغّل الجيلبريك وافتح Payload Manager على الجهاز، واتأكد إن التليفون على نفس شبكة الواي فاي", "Run the jailbreak and open Payload Manager on the console, and make sure the phone is on the same Wi-Fi network")))
+        sectionPs5.addView(stepRow(ctx, 2, Str.p("في التطبيق: ترجمة ← الريموت بلاي ← «تفعيل وهمي (بدون تسجيل سوني)»", "In the app: Translate → Remote Play → 'Fake Activation (no Sony sign-in)'")))
+        sectionPs5.addView(stepRow(ctx, 3, Str.p("اكتب عنوان IP بتاع الجهاز (هتلاقيه في Payload Manager) أو دوس بحث، وبعدين دوس «إرسال أداة التفعيل للجهاز»", "Enter the console IP address (shown in Payload Manager) or tap Search, then tap 'Send activation tool to console'")))
+        sectionPs5.addView(stepRow(ctx, 4, Str.p("اختار الحساب المحلي من القايمة اللي هتظهر عشان يتفعّل ويتسجل وهمي", "Pick the local account from the list that appears to activate it and fake sign it in")))
+        sectionPs5.addView(stepRow(ctx, 5, Str.p("اعمل إعادة تشغيل (Restart) للـPS5 — خطوة إجبارية", "Restart the PS5 — this step is mandatory")))
+        sectionPs5.addView(stepRow(ctx, 6, Str.p("بعد الريستارت سجّل دخول بنفس الحساب اللي فعّلته، وروح الإعدادات ← النظام ← Remote Play وشغّل «Enable Remote Play» وانت داخل بنفس الحساب ده (من سوفت 10.00 الإعداد ده لكل حساب لوحده، ولو مقفول البث هيترفض)", "After the restart, log in with the same account you activated, go to Settings → System → Remote Play and turn ON 'Enable Remote Play' while signed in with this account (since firmware 10.00 this setting is per-user; if it is OFF the stream will be refused)")))
+        sectionPs5.addView(stepRow(ctx, 7, Str.p("خد رقم PIN جديد من «ربط جهاز» (الرقم القديم مش هيشتغل)، وحطه في التطبيق في خطوة الـPIN ودوس حفظ، وبعدين بدء البث", "Get a NEW PIN from 'Link Device' (the old PIN won't work), enter it in the app's PIN step and tap Save, then Start Stream")))
+        sectionPs5.addView(Ui.bodyText(
+            ctx,
+            Str.p("ملحوظة: خلي الجهاز أوفلاين أو احجب PSN (زي nanoDNS) عشان الجهاز ميكتشفش إنه مش مسجل بجد ويلغي التسجيل الوهمي. ولو البث اترفض بعد كده، دوس «تأكيد التسجيل الوهمي» في صفحة الريموت بلاي — مش هتحتاج تعيد التفعيل من الأول.", "Note: keep the console offline or block PSN (e.g. nanoDNS) so the console doesn't realize it isn't really signed in and clear the fake sign-in. If the stream gets refused later, tap 'Re-confirm Fake Sign-in' on the Remote Play page — you won't need to activate again from scratch."),
+            13f, Ui.MUTED
+        ))
     }
 }
