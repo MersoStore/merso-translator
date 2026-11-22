@@ -220,6 +220,22 @@ class RemotePlayActivity : Activity() {
         hideInPip.add(btnRow2)
         root.addView(streamBox)
 
+        // Quick tools: full-screen translate + history, right under the stream
+        val toolsCard = Ui.card(this)
+        toolsCard.addView(Ui.cardTitle(this, Str.p("أدوات سريعة", "Quick Tools")))
+        toolsCard.addView(Ui.primaryButton(this, Str.p("🖥 ترجم الشاشة كلها دلوقتي", "🖥 Translate Whole Screen Now")).apply {
+            setOnClickListener { translateWholeScreen() }
+        })
+        toolsCard.addView(Ui.bodyText(
+            this,
+            Str.p("بيترجم كل النص اللي على الشاشة مرة واحدة، وكل ترجمة بتظهر في نفس مكان النص الأصلي — مفيد في القوائم.", "Translates all text on screen at once, each translation appears where the original text is — handy for menus."),
+            13f, Ui.MUTED
+        ))
+        toolsCard.addView(Ui.secondaryButton(this, Str.p("📜 سجل الترجمة", "📜 Translation History")).apply {
+            setOnClickListener { showHistory() }
+        })
+        addTracked(toolsCard)
+
         // Status card
         val c4 = Ui.card(this)
         c4.addView(Ui.cardTitle(this, Str.p("الحالة", "Status")))
@@ -228,8 +244,142 @@ class RemotePlayActivity : Activity() {
         addTracked(c4)
 
         val scroll = ScrollView(this).apply { addView(root) }
-        setContentView(scroll)
+        // Bottom tab bar (same as the main screen) so navigation stays
+        // visible here; tapping a tab returns to the main screen on it.
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = Ui.roundedBg(this@RemotePlayActivity, "#1C1C1C", 40, "#333333", 1)
+            setPadding(dp(6), dp(5), dp(6), dp(5))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(dp(24), dp(6), dp(24), dp(12)) }
+            elevation = dp(8).toFloat()
+        }
+        fun tabItem(icon: String, label: String, selected: Boolean, iconColor: String?, onClick: () -> Unit): LinearLayout {
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(4), dp(5), dp(4), dp(5))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                if (selected) background = Ui.roundedBg(this@RemotePlayActivity, "#3A3A3A", 32)
+                setOnClickListener { onClick() }
+            }
+            item.addView(TextView(this).apply {
+                text = icon
+                textSize = 18f
+                if (iconColor != null) setTextColor(Color.parseColor(iconColor))
+                gravity = Gravity.CENTER
+            })
+            item.addView(TextView(this).apply {
+                text = label
+                textSize = 11f
+                setTextColor(Color.parseColor(if (selected) Ui.GOLD else Ui.SUB))
+                if (selected) typeface = android.graphics.Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setPadding(0, dp(2), 0, 0)
+            })
+            return item
+        }
+        bar.addView(tabItem("💬", Str.p("ترجمة", "Translate"), true, null) { goToTab(0) })
+        bar.addView(tabItem("📖", Str.p("دليل", "Guide"), false, null) { goToTab(1) })
+        bar.addView(tabItem("⚙️", Str.p("إعدادات", "Settings"), false, null) { goToTab(2) })
+        bar.addView(tabItem("▶", Str.p("يوتيوب", "YouTube"), false, "#FF2E2E") {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.youtube.com/@mersostore")))
+            } catch (_: Exception) {}
+        })
+        bar.addView(tabItem("🎬", Str.p("شرح الاستخدام", "How to Use"), false, null) { goToTab(3) })
+        bar.addView(tabItem("✈️", Str.p("تليجرام", "Telegram"), false, null) { goToTab(4) })
+        hideInPip.add(bar)
+        val wrapper = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(scroll, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+            ))
+            addView(bar)
+        }
+        setContentView(wrapper)
         Ui.animateChildren(root)
+    }
+
+    // One-shot: translate everything on the current frame, each line shown
+    // on the TV at the original text's position.
+    private fun translateWholeScreen() {
+        val bmp = streamController?.grabFrame(1280, 720)
+            ?: streamController?.snapshotFrame()
+            ?: if (::streamTexture.isInitialized) try { streamTexture.getBitmap() } catch (_: Exception) { null } else null
+        if (bmp == null) {
+            Toast.makeText(this, Str.p("شغّل البث الأول", "Start the stream first"), Toast.LENGTH_LONG).show()
+            return
+        }
+        Toast.makeText(this, Str.p("بنترجم الشاشة…", "Translating the screen…"), Toast.LENGTH_SHORT).show()
+        // Clear what's on the TV and hold live box captions back while the
+        // full-screen translations are showing, so nothing overlaps/churns.
+        MqttSender.sendClear(this)
+        OcrEngine.suppressLive(16000)
+        var idx = 0
+        OcrEngine.translateFullScreen(bmp, { en, ar, x, y, color ->
+            MqttSender.sendCaption(this, en, ar, 100 + idx, x, y, if (Prefs.autoColor(this)) color else null)
+            idx++
+            History.add(this, en, ar)
+        }, { count ->
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    if (count > 0) Str.p("اترجمت $count حتة على الشاشة ✓", "Translated $count items on screen ✓")
+                    else Str.p("ملقيناش نص نترجمه", "No text found to translate"),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        })
+    }
+
+    private fun showHistory() {
+        val items = History.list(this)
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(10), dp(20), dp(10))
+        }
+        if (items.isEmpty()) {
+            container.addView(Ui.bodyText(this, Str.p("لسه مفيش ترجمات", "No translations yet"), 15f, Ui.MUTED))
+        }
+        val fmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+        for ((en, ar, t) in items) {
+            container.addView(TextView(this).apply {
+                text = ar
+                textSize = 16f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setTextColor(Color.parseColor(Ui.TEXT))
+                setPadding(0, dp(10), 0, 0)
+            })
+            container.addView(TextView(this).apply {
+                text = en + "  ·  " + fmt.format(java.util.Date(t))
+                textSize = 12f
+                setTextColor(Color.parseColor(Ui.MUTED))
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle(Str.p("📜 سجل الترجمة", "📜 Translation History"))
+            .setView(ScrollView(this).apply { addView(container) })
+            .setPositiveButton(Str.p("إغلاق", "Close"), null)
+            .setNegativeButton(Str.p("مسح السجل", "Clear")) { _, _ -> History.clear(this) }
+            .show()
+    }
+
+    private fun goToTab(index: Int) {
+        // Hand the running stream over to the main screen (mini player)
+        // instead of killing it when leaving this screen.
+        if (streamController?.running == true) {
+            StreamHolder.handedOff = true
+            streamController?.detach()
+            streamController = null
+        }
+        val i = Intent(this, MainActivity::class.java).apply {
+            putExtra("tab", index)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        startActivity(i)
+        finish()
     }
 
     private fun adoptStream(c: StreamController) {
