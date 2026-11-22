@@ -88,6 +88,13 @@ object MqttSender {
     }
 
     fun sendCaption(ctx: Context, en: String, ar: String) {
+        sendCaption(ctx, en, ar, -1, 0.5f, 0.9f)
+    }
+
+    // box >= 0: the TV shows this caption at the box's position (x, y are
+    // the box center as fractions of the screen). box = -1 keeps the old
+    // bottom-caption behavior for callers without boxes (camera mode).
+    fun sendCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float) {
         val code = Prefs.code(ctx)
         if (code.length < 4 || ar.isBlank()) return
         exec.execute {
@@ -97,6 +104,11 @@ object MqttSender {
                     put("en", en)
                     put("ar", ar)
                     put("t", System.currentTimeMillis())
+                    if (box >= 0) {
+                        put("box", box)
+                        put("x", x.toDouble())
+                        put("y", y.toDouble())
+                    }
                 }.toString()
                 client?.publish(topic(code, "sub"), MqttMessage(payload.toByteArray()).apply { qos = 0 })
             } catch (e: Exception) {
