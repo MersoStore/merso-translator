@@ -221,8 +221,10 @@ class CameraActivity : Activity() {
                     // Only the text inside the on-screen box gets translated
                     val cropped = OcrEngine.cropBitmap(bmp, Prefs.camCrop(this@CameraActivity))
                     if (cropped !== bmp) bmp.recycle()
-                    OcrEngine.processFrame(cropped, immediate = true) { en, ar ->
-                        MqttSender.sendCaption(this@CameraActivity, en, ar)
+                    OcrEngine.processFrame(cropped, immediate = true) { en, ar, color ->
+                        MqttSender.sendCaption(this@CameraActivity, en, ar, -1, 0.5f, 0.9f, if (Prefs.autoColor(this@CameraActivity)) color else null)
+                        History.add(this@CameraActivity, en, ar)
+                        Tts.speak(this@CameraActivity, ar)
                         runOnUiThread { caption.text = ar }
                     }
                 }
