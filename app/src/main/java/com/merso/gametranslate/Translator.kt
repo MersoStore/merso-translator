@@ -12,6 +12,17 @@ object Translator {
     private val cache = mutableMapOf<String, String>()
 
     fun translateEnToAr(text: String): String {
+        // Multi-line text (e.g. a numbered list) is translated line by line
+        // so the translation keeps the same lines in the same order.
+        if (text.contains("\n")) {
+            return text.split("\n").joinToString("\n") { line ->
+                if (line.isBlank()) "" else translateLine(line)
+            }
+        }
+        return translateLine(text)
+    }
+
+    private fun translateLine(text: String): String {
         val clean = text.trim().replace(Regex("\\s+"), " ")
         if (clean.isEmpty()) return ""
         cache[clean]?.let { return it }
