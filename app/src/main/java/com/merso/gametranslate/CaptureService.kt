@@ -107,11 +107,15 @@ class CaptureService : Service() {
                 val bitmap = imageToBitmap(image, width, height)
                 if (bitmap != null) {
                     val boxes = Prefs.crops(this@CaptureService)
-                    OcrEngine.processBoxes(bitmap, boxes) { i, en, ar ->
-                        lastEnglish = en
-                        lastArabic = ar
-                        val b = boxes[i]
-                        MqttSender.sendCaption(this@CaptureService, en, ar, i, (b[0] + b[2]) / 2f, (b[1] + b[3]) / 2f)
+                    OcrEngine.processBoxes(bitmap, boxes) { i, en, ar, color, lines ->
+                        if (!OcrEngine.liveSuppressed()) {
+                            lastEnglish = en
+                            lastArabic = ar
+                            val b = boxes[i]
+                            MqttSender.sendLines(this@CaptureService, i, b, en, ar, if (Prefs.autoColor(this@CaptureService)) color else null, lines)
+                            History.add(this@CaptureService, en, ar)
+                            Tts.speak(this@CaptureService, ar)
+                        }
                     }
                     bitmap.recycle()
                 }
