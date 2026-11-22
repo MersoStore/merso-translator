@@ -13,6 +13,16 @@ object TvServer {
     @Volatile var running = false
     private var serverSocket: ServerSocket? = null
     private val exec = Executors.newCachedThreadPool()
+    @Volatile private var fontBytes: ByteArray? = null
+
+    // Loads the Cairo caption font from assets so the TV page can use it
+    // over the LAN (no internet needed on the TV).
+    fun init(ctx: Context) {
+        if (fontBytes != null) return
+        try {
+            fontBytes = ctx.applicationContext.assets.open("cairo.ttf").readBytes()
+        } catch (_: Exception) {}
+    }
 
     fun localIp(ctx: Context): String? {
         return try {
@@ -56,13 +66,13 @@ object TvServer {
                 line = reader.readLine()
             }
             val path = requestLine.split(" ").getOrNull(1) ?: "/"
-            val (contentType, bodyText) = when {
-                path.startsWith("/msx/start.json") -> "application/json" to startJson()
-                path.startsWith("/msx/menu.json") -> "application/json" to menuJson(host)
-                path.startsWith("/tv") -> "text/html; charset=utf-8" to page()
-                else -> "text/html; charset=utf-8" to page()
+            val (contentType, body) = when {
+                path.startsWith("/cairo.ttf") -> "font/ttf" to (fontBytes ?: ByteArray(0))
+                path.startsWith("/msx/start.json") -> "application/json" to startJson().toByteArray(Charsets.UTF_8)
+                path.startsWith("/msx/menu.json") -> "application/json" to menuJson(host).toByteArray(Charsets.UTF_8)
+                path.startsWith("/tv") -> "text/html; charset=utf-8" to page().toByteArray(Charsets.UTF_8)
+                else -> "text/html; charset=utf-8" to page().toByteArray(Charsets.UTF_8)
             }
-            val body = bodyText.toByteArray(Charsets.UTF_8)
             val header = "HTTP/1.1 200 OK\r\n" +
                 "Content-Type: $contentType\r\n" +
                 "Content-Length: ${body.size}\r\n" +
@@ -139,6 +149,7 @@ object TvServer {
 <title>%TITLE%</title>
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <style>
+  @font-face{font-family:'Cairo';src:url('/cairo.ttf') format('truetype');font-weight:900;font-style:normal}
   html,body{margin:0;padding:0;background:#000;color:#fff;font-family:sans-serif;height:100%;overflow:hidden}
   #hdmi{position:absolute;top:0;left:0;width:100%;height:100%;background:#000}
   #codeBox{position:absolute;top:3%;width:100%;text-align:center;z-index:3}
@@ -148,6 +159,7 @@ object TvServer {
   #inputs{position:absolute;top:3%;right:2%;z-index:4}
   #inputs button{font-size:1.6vw;padding:.6vw 1.2vw;margin:.3vw;background:#222;color:#FFC400;border:1px solid #FFC400;border-radius:8px}
   .cap{position:absolute;transform:translate(-50%,-50%);max-width:80%;text-align:center;z-index:3;
+    white-space:pre-line;font-family:'Cairo',sans-serif;font-weight:900;
     font-size:2.6vw;line-height:1.4;color:#fff;
     text-shadow:0 0 8px #000,0 0 8px #000,2px 2px 4px #000;
     background:rgba(0,0,0,.45);border-radius:10px;padding:.6vw 1.2vw;display:none}
@@ -201,11 +213,11 @@ setInput(1);
   var capsEl = document.getElementById('caps');
   var caps = {};
   var timers = {};
-  var curStyle = {fontSize:'2.6vw', color:'#fff', background:'rgba(0,0,0,.45)'};
+  var curStyle = {fontSize:'2.6vw', color:'#fff', background:'rgba(0,0,0,.45)', dur:'M'};
   function applyStyle(el){
     el.style.fontSize = curStyle.fontSize;
-    el.style.color = curStyle.color;
     el.style.background = curStyle.background;
+    if (!el.dataset.custom) el.style.color = curStyle.color;
   }
   function getCap(box){
     if (!caps[box]) {
@@ -234,11 +246,30 @@ setInput(1);
         if (msg.size && sizes[msg.size]) curStyle.fontSize = sizes[msg.size];
         if (msg.color) curStyle.color = (msg.color === 'yellow') ? '#FFD400' : '#fff';
         if (typeof msg.bg === 'number') curStyle.background = 'rgba(0,0,0,' + (msg.bg/100) + ')';
+        if (msg.dur) curStyle.dur = msg.dur;
         for (var k in caps) applyStyle(caps[k]);
         return;
       }
       if (msg.role === 'phone') {
         statusEl.textContent = '%PHONEWAIT%';
+        return;
+      }
+      if (msg.clear) {
+        if (typeof msg.box === 'number') {
+          var g = msg.box;
+          for (var k in caps) {
+            var n = parseInt(k, 10);
+            if (n === g || (n >= g * 10 && n < g * 10 + 10)) {
+              caps[k].style.display = 'none';
+              if (timers[k]) clearTimeout(timers[k]);
+            }
+          }
+        } else {
+          for (var k in caps) {
+            caps[k].style.display = 'none';
+            if (timers[k]) clearTimeout(timers[k]);
+          }
+        }
         return;
       }
       if (msg.ar) {
@@ -247,12 +278,17 @@ setInput(1);
         var y = (typeof msg.y === 'number') ? msg.y : 0.9;
         var el = getCap(box);
         el.textContent = msg.ar;
+        if (msg.color) { el.style.color = msg.color; el.dataset.custom = '1'; }
+        else { el.style.color = curStyle.color; el.dataset.custom = ''; }
         el.style.left = (x * 100) + '%';
         el.style.top = (y * 100) + '%';
         el.style.display = 'block';
         statusEl.textContent = '%PHONECONN%';
         if (timers[box]) clearTimeout(timers[box]);
-        var readMs = Math.max(3500, Math.min(10000, 2500 + msg.ar.length * 80));
+        var readMs;
+        if (curStyle.dur === 'S') readMs = Math.max(2500, Math.min(7000, 1800 + msg.ar.length * 55));
+        else if (curStyle.dur === 'L') readMs = Math.max(5000, Math.min(15000, 3500 + msg.ar.length * 110));
+        else readMs = Math.max(3500, Math.min(10000, 2500 + msg.ar.length * 80));
         timers[box] = setTimeout(function(){ el.style.display='none'; }, readMs);
       }
     } catch(e){}
