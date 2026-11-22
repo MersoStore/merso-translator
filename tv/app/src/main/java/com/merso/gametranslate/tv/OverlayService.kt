@@ -49,9 +49,10 @@ class OverlayService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val exec = Executors.newSingleThreadExecutor()
     private var wm: WindowManager? = null
-    private var captionView: TextView? = null
+    private var container: android.widget.FrameLayout? = null
+    private val captionViews = mutableMapOf<Int, TextView>()
+    private val hideRunnables = mutableMapOf<Int, Runnable>()
     @Volatile private var client: MqttClient? = null
-    private var hideRunnable: Runnable? = null
     private var code = ""
     @Volatile private var destroyed = false
 
@@ -96,8 +97,9 @@ class OverlayService : Service() {
         mqttConnected = false
         phoneOnline = false
         main.removeCallbacks(watchdog)
-        try { captionView?.let { wm?.removeView(it) } } catch (_: Exception) {}
-        captionView = null
+        try { container?.let { wm?.removeView(it) } } catch (_: Exception) {}
+        container = null
+        captionViews.clear()
         exec.execute {
             try { client?.disconnect() } catch (_: Exception) {}
             try { client?.close() } catch (_: Exception) {}
@@ -124,40 +126,53 @@ class OverlayService : Service() {
 
     private fun showOverlay() {
         wm = getSystemService(WindowManager::class.java)
-        val tv = TextView(this).apply {
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            setShadowLayer(8f, 0f, 0f, Color.BLACK)
-            setPadding(dp(28), dp(14), dp(28), dp(14))
-            visibility = View.GONE
-        }
-        captionView = tv
-        applyStyle()
-        val screenW = resources.displayMetrics.widthPixels
+        val root = android.widget.FrameLayout(this)
+        container = root
         val params = WindowManager.LayoutParams(
-            (screenW * 0.7f).toInt(),
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = dp(36)
-        }
+        )
         try {
-            wm?.addView(tv, params)
+            wm?.addView(root, params)
         } catch (e: Exception) {
             Log.e(TAG, "overlay add failed", e)
             lastError = "overlay: " + (e.message ?: e.javaClass.simpleName)
         }
     }
 
+    private fun getCaptionView(box: Int): TextView {
+        captionViews[box]?.let { return it }
+        val screenW = resources.displayMetrics.widthPixels
+        val tv = TextView(this).apply {
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            setShadowLayer(8f, 0f, 0f, Color.BLACK)
+            setPadding(dp(28), dp(14), dp(28), dp(14))
+            maxWidth = (screenW * 0.8f).toInt()
+            visibility = View.GONE
+            layoutParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        applyStyleTo(tv)
+        container?.addView(tv)
+        captionViews[box] = tv
+        return tv
+    }
+
     private fun applyStyle() {
-        val tv = captionView ?: return
+        captionViews.values.forEach { applyStyleTo(it) }
+    }
+
+    private fun applyStyleTo(tv: TextView) {
         val sizeSp = when (TvPrefs.styleSize(this)) {
             "S" -> 17f
             "L" -> 33f
@@ -173,15 +188,21 @@ class OverlayService : Service() {
         }
     }
 
-    private fun showCaption(ar: String) {
+    private fun showCaption(ar: String, box: Int, x: Float, y: Float) {
         main.post {
-            val tv = captionView ?: return@post
+            val tv = getCaptionView(box)
             tv.text = ar
             tv.visibility = View.VISIBLE
-            hideRunnable?.let { main.removeCallbacks(it) }
+            val screenW = resources.displayMetrics.widthPixels
+            val screenH = resources.displayMetrics.heightPixels
+            tv.post {
+                tv.x = (screenW * x - tv.width / 2f).coerceIn(0f, maxOf(0f, (screenW - tv.width).toFloat()))
+                tv.y = (screenH * y - tv.height / 2f).coerceIn(0f, maxOf(0f, (screenH - tv.height).toFloat()))
+            }
+            hideRunnables[box]?.let { main.removeCallbacks(it) }
             val readMs = maxOf(3500L, minOf(10000L, 2500L + ar.length * 80L))
             val r = Runnable { tv.visibility = View.GONE }
-            hideRunnable = r
+            hideRunnables[box] = r
             main.postDelayed(r, readMs)
         }
     }
@@ -230,7 +251,10 @@ class OverlayService : Service() {
                                         if (ar.isNotBlank()) {
                                             phoneOnline = true
                                             lastCaptionAt = System.currentTimeMillis()
-                                            showCaption(ar)
+                                            val box = if (msg.has("box")) msg.getInt("box") else 0
+                                            val x = if (msg.has("x")) msg.getDouble("x").toFloat() else 0.5f
+                                            val y = if (msg.has("y")) msg.getDouble("y").toFloat() else 0.9f
+                                            showCaption(ar, box, x, y)
                                         }
                                     }
                                 }
