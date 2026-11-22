@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -34,6 +35,7 @@ class MainActivity : Activity() {
     private lateinit var guideScroll: ScrollView
     private lateinit var settingsScroll: ScrollView
     private lateinit var howtoScroll: ScrollView
+    private lateinit var telegramScroll: ScrollView
     private var howtoWeb: android.webkit.WebView? = null
     private var howtoLoaded = false
     private lateinit var step1Body: LinearLayout
@@ -55,6 +57,7 @@ class MainActivity : Activity() {
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         try {
             buildUi()
+            Updater.checkOnLaunch(this)
         } catch (e: Throwable) {
             val tv = TextView(this).apply {
                 text = "خطأ: ${e.javaClass.simpleName}: ${e.message}"
@@ -313,6 +316,35 @@ class MainActivity : Activity() {
         }
         frame.addView(howtoScroll)
 
+        // ---------- Telegram tab ----------
+        val tgRoot = Ui.screenRoot(this)
+        tgRoot.setPadding(dp(18), dp(24), dp(18), dp(110))
+        tgRoot.addView(Ui.header(this, Str.p("✈️ تليجرام", "✈️ Telegram"), Str.p("تابعنا واتكلم معانا", "Follow us and chat with us")))
+        val tgCard = Ui.card(this)
+        tgCard.addView(Ui.cardTitle(this, Str.p("روابط التليجرام", "Telegram Links")))
+        tgCard.addView(Ui.primaryButton(this, Str.p("دخول قناة التليجرام", "Join Telegram Channel")).apply {
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/mersogaming1")))
+                } catch (_: Exception) {}
+            }
+        })
+        tgCard.addView(Ui.bodyText(this, Str.p("أخبار وتحديثات القناة والتطبيق أول بأول", "Channel and app news and updates as they happen"), 14f, Ui.MUTED))
+        tgCard.addView(Ui.primaryButton(this, Str.p("دخول شات التليجرام", "Join Telegram Chat")).apply {
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/mersogamingchat")))
+                } catch (_: Exception) {}
+            }
+        })
+        tgCard.addView(Ui.bodyText(this, Str.p("نقاش ومساعدة مع باقي المتابعين", "Discussion and help with other followers"), 14f, Ui.MUTED))
+        tgRoot.addView(tgCard)
+        telegramScroll = ScrollView(this).apply {
+            addView(tgRoot)
+            visibility = View.GONE
+        }
+        frame.addView(telegramScroll)
+
         // ---------- Bottom tab bar ----------
         val bar = LinearLayout(this).apply {
             tabBar = this
@@ -405,6 +437,30 @@ class MainActivity : Activity() {
         tabIcons.add(howtoIcon)
         tabLabels.add(howtoLabel)
         bar.addView(howtoItem)
+        val tgItem = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(5), dp(4), dp(5))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnClickListener { selectTab(4) }
+        }
+        val tgIcon = TextView(this).apply {
+            text = "✈️"
+            textSize = 18f
+            gravity = Gravity.CENTER
+        }
+        val tgLabel = TextView(this).apply {
+            text = Str.p("تليجرام", "Telegram")
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(2), 0, 0)
+        }
+        tgItem.addView(tgIcon)
+        tgItem.addView(tgLabel)
+        tabItems.add(tgItem)
+        tabIcons.add(tgIcon)
+        tabLabels.add(tgLabel)
+        bar.addView(tgItem)
         frame.addView(bar)
 
         // Mini player: keeps the stream visible here after leaving Remote Play
@@ -601,6 +657,7 @@ class MainActivity : Activity() {
                 translateScroll.visibility = View.GONE
                 guideScroll.visibility = View.GONE
                 settingsScroll.visibility = View.GONE
+                telegramScroll.visibility = View.GONE
                 tabBar.visibility = View.GONE
                 miniClose.visibility = View.GONE
                 miniBox.translationX = 0f
@@ -778,7 +835,7 @@ class MainActivity : Activity() {
         // Subtitle area
         val areaCard = Ui.card(this)
         areaCard.addView(Ui.cardTitle(this, Str.p("منطقة الترجمة", "Subtitle Area")))
-        val preview = CropPreviewView(this)
+        val preview = CropPreviewView(this) { if (::miniTexture.isInitialized) miniTexture else null }
         preview.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(190)
         ).apply { topMargin = dp(6); bottomMargin = dp(6) }
@@ -950,6 +1007,9 @@ class MainActivity : Activity() {
         })
         vRow.addView(Ui.bodyText(this, version, 16f, Ui.MUTED))
         aboutCard.addView(vRow)
+        aboutCard.addView(Ui.primaryButton(this, Str.p("التحقق من التحديثات", "Check for Updates")).apply {
+            setOnClickListener { Updater.checkManual(this@MainActivity) }
+        })
         val ytRow2 = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1011,6 +1071,7 @@ class MainActivity : Activity() {
         guideScroll.visibility = if (index == 1) View.VISIBLE else View.GONE
         settingsScroll.visibility = if (index == 2) View.VISIBLE else View.GONE
         howtoScroll.visibility = if (index == 3) View.VISIBLE else View.GONE
+        telegramScroll.visibility = if (index == 4) View.VISIBLE else View.GONE
         if (index == 3) {
             howtoWeb?.onResume()
             if (!howtoLoaded) {
@@ -1042,6 +1103,7 @@ class MainActivity : Activity() {
         val content = when (index) {
             1 -> guideScroll.getChildAt(0) as? LinearLayout
             2 -> settingsScroll.getChildAt(0) as? LinearLayout
+            4 -> telegramScroll.getChildAt(0) as? LinearLayout
             else -> null
         }
         if (content != null) Ui.animateChildren(content)
@@ -1067,7 +1129,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private class CropPreviewView(ctx: android.content.Context) : View(ctx) {
+    private class CropPreviewView(
+        ctx: android.content.Context,
+        private val textureProvider: () -> TextureView?
+    ) : View(ctx) {
         var onCropChanged: (() -> Unit)? = null
         private var dragMode = 0 // 0 none, 1 move, 2 resize right, 3 resize bottom
         private var lastX = 0f
@@ -1135,13 +1200,49 @@ class MainActivity : Activity() {
             textSize = 34f
         }
 
+        private var frameBitmap: Bitmap? = null
+        private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+        private val refreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        private val refreshRunnable = object : Runnable {
+            override fun run() {
+                val tv = textureProvider()
+                val direct = if (tv != null && tv.isAvailable) {
+                    try { tv.getBitmap(640, 360) } catch (_: Exception) { null }
+                } else null
+                val controller = StreamHolder.controller
+                val snap = direct ?: controller?.grabFrame(640, 360) ?: controller?.snapshotFrame()
+                if (snap != null) {
+                    val old = frameBitmap
+                    frameBitmap = snap
+                    if (old != null && old !== snap) old.recycle()
+                    invalidate()
+                }
+                refreshHandler.postDelayed(this, 100)
+            }
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            refreshHandler.post(refreshRunnable)
+        }
+
+        override fun onDetachedFromWindow() {
+            refreshHandler.removeCallbacks(refreshRunnable)
+            super.onDetachedFromWindow()
+        }
+
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
-            canvas.drawText(
-                Str.p("صورة اللعبة بتظهر هنا والترجمة شغالة", "The game picture appears here while translation is on."),
-                24f, 56f, textPaint
-            )
+            val frame = frameBitmap
+            if (frame != null && !frame.isRecycled) {
+                canvas.drawBitmap(frame, null, android.graphics.Rect(0, 0, width, height), bitmapPaint)
+            } else {
+                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
+                canvas.drawText(
+                    Str.p("صورة اللعبة بتظهر هنا والترجمة شغالة", "The game picture appears here while translation is on."),
+                    24f, 56f, textPaint
+                )
+            }
             val c = Prefs.crop(context)
             val l = c[0] * width
             val t = c[1] * height
