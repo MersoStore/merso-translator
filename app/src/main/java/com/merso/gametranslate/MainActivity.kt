@@ -835,13 +835,13 @@ class MainActivity : Activity() {
         // Subtitle area
         val areaCard = Ui.card(this)
         areaCard.addView(Ui.cardTitle(this, Str.p("منطقة الترجمة", "Subtitle Area")))
+        var selectedBox = 0
         val preview = CropPreviewView(this) { if (::miniTexture.isInitialized) miniTexture else null }
         preview.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(190)
         ).apply { topMargin = dp(6); bottomMargin = dp(6) }
         areaCard.addView(preview)
 
-        val crop = Prefs.crop(this)
         var edge = 1 // 0=left 1=top 2=right 3=bottom
         val edges = listOf(
             Str.p("شمال", "Left"), Str.p("فوق", "Top"), Str.p("يمين", "Right"), Str.p("تحت", "Bottom")
@@ -849,7 +849,10 @@ class MainActivity : Activity() {
         val seek = SeekBar(this).apply { max = 100 }
         val pctLabel = Ui.bodyText(this, "", 15f, Ui.TEXT)
         fun refreshSeek() {
-            val c = Prefs.crop(this@MainActivity)
+            val boxes = Prefs.crops(this@MainActivity)
+            selectedBox = selectedBox.coerceIn(0, boxes.lastIndex)
+            preview.selectedIndex = selectedBox
+            val c = boxes[selectedBox]
             val v = (c[edge] * 100).toInt()
             seek.progress = v
             pctLabel.text = "$v%"
@@ -879,23 +882,62 @@ class MainActivity : Activity() {
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                val c = Prefs.crop(this@MainActivity)
+                val boxes = Prefs.crops(this@MainActivity).map { it.copyOf() }.toMutableList()
+                selectedBox = selectedBox.coerceIn(0, boxes.lastIndex)
+                val c = boxes[selectedBox]
                 c[edge] = progress / 100f
                 // keep the box sane
                 if (c[0] > c[2] - 0.05f) c[0] = c[2] - 0.05f
                 if (c[2] < c[0] + 0.05f) c[2] = c[0] + 0.05f
                 if (c[1] > c[3] - 0.03f) c[1] = c[3] - 0.03f
                 if (c[3] < c[1] + 0.03f) c[3] = c[1] + 0.03f
-                Prefs.setCrop(this@MainActivity, c[0], c[1], c[2], c[3])
+                Prefs.setCrops(this@MainActivity, boxes)
                 pctLabel.text = "$progress%"
                 preview.invalidate()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
+        val boxBtnRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        boxBtnRow.addView(Ui.secondaryButton(this, Str.p("➕ إضافة مربع", "➕ Add Box")).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginEnd = dp(6) }
+            setOnClickListener {
+                val boxes = Prefs.crops(this@MainActivity).map { it.copyOf() }.toMutableList()
+                if (boxes.size >= 4) {
+                    Toast.makeText(this@MainActivity, Str.p("أقصى حاجة 4 مربعات", "Maximum 4 boxes"), Toast.LENGTH_SHORT).show()
+                } else {
+                    boxes.add(floatArrayOf(0.2f, 0.08f, 0.8f, 0.24f))
+                    Prefs.setCrops(this@MainActivity, boxes)
+                    selectedBox = boxes.lastIndex
+                    refreshSeek()
+                }
+            }
+        })
+        boxBtnRow.addView(Ui.secondaryButton(this, Str.p("🗑 حذف المربع", "🗑 Delete Box")).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = dp(6) }
+            setOnClickListener {
+                val boxes = Prefs.crops(this@MainActivity).map { it.copyOf() }.toMutableList()
+                if (boxes.size <= 1) {
+                    Toast.makeText(this@MainActivity, Str.p("لازم يفضل مربع واحد على الأقل", "At least one box must remain"), Toast.LENGTH_SHORT).show()
+                } else {
+                    selectedBox = selectedBox.coerceIn(0, boxes.lastIndex)
+                    boxes.removeAt(selectedBox)
+                    selectedBox = minOf(selectedBox, boxes.lastIndex)
+                    Prefs.setCrops(this@MainActivity, boxes)
+                    refreshSeek()
+                }
+            }
+        })
+        areaCard.addView(boxBtnRow)
         areaCard.addView(Ui.secondaryButton(this, Str.p("رجوع للوضع الافتراضي", "Reset to Default")).apply {
             setOnClickListener {
-                Prefs.setCrop(this@MainActivity, 0.15f, 0.75f, 0.85f, 0.99f)
+                Prefs.setCrops(this@MainActivity, listOf(floatArrayOf(0.15f, 0.75f, 0.85f, 0.99f)))
+                selectedBox = 0
                 refreshSeek()
                 preview.postInvalidate()
                 Toast.makeText(this@MainActivity, Str.p("رجعنا للوضع الافتراضي ✓", "Reset to default ✓"), Toast.LENGTH_SHORT).show()
@@ -903,10 +945,14 @@ class MainActivity : Activity() {
         })
         areaCard.addView(Ui.bodyText(
             this,
-            Str.p("حرّك الإطار الأحمر فوق مكان ترجمة اللعبة. لو الإطار ضيق، أول الجملة أو آخرها هيتقطع.", "Move the red frame over the place where the game's subtitles appear. If the frame is too narrow, the start or end of a sentence gets cut off."),
+            Str.p("حرّك الإطار الأحمر فوق مكان ترجمة اللعبة. لو الإطار ضيق، أول الجملة أو آخرها هيتقطع. تقدر تضيف أكتر من مربع، وكل مربع بيترجم المكان اللي هو فيه بس والترجمة بتظهر على التلفزيون في نفس مكان المربع — دوس على أي مربع عشان تختاره وتحرّكه.", "Move the red frame over the place where the game's subtitles appear. If the frame is too narrow, the start or end of a sentence gets cut off. You can add more than one box — each box translates only the area it covers, and its translation appears on the TV at that same spot. Tap a box to select and move it."),
             13f, Ui.MUTED
         ))
         preview.onCropChanged = { refreshSeek() }
+        preview.onSelectionChanged = {
+            selectedBox = preview.selectedIndex
+            refreshSeek()
+        }
         refreshSeek()
         sRoot.addView(areaCard)
 
@@ -1134,30 +1180,53 @@ class MainActivity : Activity() {
         private val textureProvider: () -> TextureView?
     ) : View(ctx) {
         var onCropChanged: (() -> Unit)? = null
+        var onSelectionChanged: (() -> Unit)? = null
+        var selectedIndex: Int = 0
         private var dragMode = 0 // 0 none, 1 move, 2 resize right, 3 resize bottom
         private var lastX = 0f
         private var lastY = 0f
 
         override fun onTouchEvent(e: android.view.MotionEvent): Boolean {
-            val c = Prefs.crop(context)
-            val l = c[0] * width
-            val t = c[1] * height
-            val r = c[2] * width
-            val b = c[3] * height
+            val boxes = Prefs.crops(context).map { it.copyOf() }.toMutableList()
+            if (selectedIndex !in boxes.indices) selectedIndex = 0
             when (e.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
+                    // Topmost box wins (last drawn is on top)
+                    var hit = -1
+                    var mode = 0
+                    for (i in boxes.indices.reversed()) {
+                        val c = boxes[i]
+                        val l = c[0] * width
+                        val t = c[1] * height
+                        val r = c[2] * width
+                        val b = c[3] * height
+                        val m = when {
+                            kotlin.math.abs(e.x - r) < 24f && e.y in t..b -> 2
+                            kotlin.math.abs(e.y - b) < 24f && e.x in l..r -> 3
+                            e.x in l..r && e.y in t..b -> 1
+                            else -> 0
+                        }
+                        if (m != 0) {
+                            hit = i
+                            mode = m
+                            break
+                        }
+                    }
+                    if (hit < 0) return false
                     parent?.requestDisallowInterceptTouchEvent(true)
                     lastX = e.x
                     lastY = e.y
-                    dragMode = when {
-                        kotlin.math.abs(e.x - r) < 24f && e.y in t..b -> 2
-                        kotlin.math.abs(e.y - b) < 24f && e.x in l..r -> 3
-                        else -> 1
+                    dragMode = mode
+                    if (selectedIndex != hit) {
+                        selectedIndex = hit
+                        onSelectionChanged?.invoke()
                     }
-                    return dragMode != 0
+                    invalidate()
+                    return true
                 }
                 android.view.MotionEvent.ACTION_MOVE -> {
                     if (dragMode == 0) return false
+                    val c = boxes[selectedIndex]
                     val dx = (e.x - lastX) / width
                     val dy = (e.y - lastY) / height
                     lastX = e.x
@@ -1174,7 +1243,7 @@ class MainActivity : Activity() {
                         2 -> c[2] = (c[2] + dx).coerceIn(c[0] + 0.05f, 1f)
                         3 -> c[3] = (c[3] + dy).coerceIn(c[1] + 0.03f, 1f)
                     }
-                    Prefs.setCrop(context, c[0], c[1], c[2], c[3])
+                    Prefs.setCrops(context, boxes)
                     invalidate()
                     onCropChanged?.invoke()
                     return true
@@ -1192,9 +1261,20 @@ class MainActivity : Activity() {
         private val framePaint = Paint().apply {
             color = Color.parseColor(Ui.GOLD)
             style = Paint.Style.STROKE
-            strokeWidth = 4f
+            strokeWidth = 3f
         }
-        private val fillPaint = Paint().apply { color = Color.argb(60, 224, 0, 0) }
+        private val selPaint = Paint().apply {
+            color = Color.parseColor(Ui.GOLD)
+            style = Paint.Style.STROKE
+            strokeWidth = 7f
+        }
+        private val fillPaint = Paint().apply { color = Color.argb(40, 224, 0, 0) }
+        private val selFillPaint = Paint().apply { color = Color.argb(80, 224, 0, 0) }
+        private val numPaint = Paint().apply {
+            color = Color.WHITE
+            textSize = 36f
+            typeface = Typeface.DEFAULT_BOLD
+        }
         private val textPaint = Paint().apply {
             color = Color.parseColor(Ui.MUTED)
             textSize = 34f
@@ -1243,13 +1323,17 @@ class MainActivity : Activity() {
                     24f, 56f, textPaint
                 )
             }
-            val c = Prefs.crop(context)
-            val l = c[0] * width
-            val t = c[1] * height
-            val r = c[2] * width
-            val b = c[3] * height
-            canvas.drawRect(l, t, r, b, fillPaint)
-            canvas.drawRect(l, t, r, b, framePaint)
+            val boxes = Prefs.crops(context)
+            boxes.forEachIndexed { i, c ->
+                val l = c[0] * width
+                val t = c[1] * height
+                val r = c[2] * width
+                val b = c[3] * height
+                val sel = i == selectedIndex
+                canvas.drawRect(l, t, r, b, if (sel) selFillPaint else fillPaint)
+                canvas.drawRect(l, t, r, b, if (sel) selPaint else framePaint)
+                canvas.drawText("${i + 1}", l + 10f, t + 42f, numPaint)
+            }
         }
     }
 }
