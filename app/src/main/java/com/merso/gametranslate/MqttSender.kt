@@ -82,19 +82,69 @@ object MqttSender {
         try {
             val code = Prefs.code(ctx)
             if (code.length < 4) return
-            val payload = """{"size":"${Prefs.tvSize(ctx)}","color":"${Prefs.tvColor(ctx)}","bg":${Prefs.tvBg(ctx)}}"""
+            val payload = """{"size":"${Prefs.tvSize(ctx)}","color":"${Prefs.tvColor(ctx)}","bg":${Prefs.tvBg(ctx)},"dur":"${Prefs.tvDur(ctx)}"}"""
             client?.publish(topic(code, "style"), MqttMessage(payload.toByteArray()).apply { qos = 0; isRetained = true })
         } catch (_: Exception) {}
     }
 
     fun sendCaption(ctx: Context, en: String, ar: String) {
-        sendCaption(ctx, en, ar, -1, 0.5f, 0.9f)
+        sendCaption(ctx, en, ar, -1, 0.5f, 0.9f, null)
+    }
+
+    // Tells the TV to hide every caption currently on screen.
+    fun sendClear(ctx: Context) {
+        val code = Prefs.code(ctx)
+        if (code.length < 4) return
+        exec.execute {
+            try {
+                if (client?.isConnected != true) connect(ctx)
+                client?.publish(topic(code, "sub"), MqttMessage("""{"clear":1}""".toByteArray()).apply { qos = 0 })
+            } catch (e: Exception) {
+                Log.e(TAG, "clear publish failed", e)
+            }
+        }
+    }
+
+    // Tells the TV to hide one box group's captions (the box id itself and
+    // its per-line ids group*10 .. group*10+9).
+    fun sendClearBox(ctx: Context, group: Int) {
+        val code = Prefs.code(ctx)
+        if (code.length < 4) return
+        exec.execute {
+            try {
+                if (client?.isConnected != true) connect(ctx)
+                client?.publish(topic(code, "sub"), MqttMessage("""{"clear":1,"box":$group}""".toByteArray()).apply { qos = 0 })
+            } catch (e: Exception) {
+                Log.e(TAG, "clear box publish failed", e)
+            }
+        }
+    }
+
+    // Sends one box result: when per-line positions are known, each
+    // translated line goes to its own spot inside the box; otherwise a
+    // single caption at the box center. The group's old captions are
+    // cleared first so stale lines never linger.
+    fun sendLines(ctx: Context, group: Int, box: FloatArray, en: String, ar: String, color: String?, lines: List<FloatArray>) {
+        val arLines = ar.split("\n")
+        val enLines = en.split("\n")
+        sendClearBox(ctx, group)
+        if (lines.isNotEmpty() && lines.size == arLines.size) {
+            for (j in lines.indices) {
+                val fx = box[0] + lines[j][0] * (box[2] - box[0])
+                val fy = box[1] + lines[j][1] * (box[3] - box[1])
+                sendCaption(ctx, enLines.getOrElse(j) { en }, arLines[j], group * 10 + j, fx, fy, color)
+            }
+        } else {
+            sendCaption(ctx, en, ar, group, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f, color)
+        }
     }
 
     // box >= 0: the TV shows this caption at the box's position (x, y are
     // the box center as fractions of the screen). box = -1 keeps the old
     // bottom-caption behavior for callers without boxes (camera mode).
-    fun sendCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float) {
+    // color ("#RRGGBB") when non-null: the TV shows the caption in that
+    // color (auto mode = the game's own text color sampled from the frame).
+    fun sendCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float, color: String?) {
         val code = Prefs.code(ctx)
         if (code.length < 4 || ar.isBlank()) return
         exec.execute {
@@ -109,6 +159,7 @@ object MqttSender {
                         put("x", x.toDouble())
                         put("y", y.toDouble())
                     }
+                    if (color != null) put("color", color)
                 }.toString()
                 client?.publish(topic(code, "sub"), MqttMessage(payload.toByteArray()).apply { qos = 0 })
             } catch (e: Exception) {
