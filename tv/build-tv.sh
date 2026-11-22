@@ -19,7 +19,7 @@ echo "== aapt2 link =="
 $BT/aapt2 link \
   --manifest $PROJ/app/src/main/AndroidManifest.xml \
   -I $AJAR \
-  --min-sdk-version 26 --target-sdk-version 34 --version-code 3 --version-name 1.2 \
+  --min-sdk-version 26 --target-sdk-version 34 --version-code 10 --version-name 2.0 \
   --java $OUT/gen \
   -o $OUT/base.apk \
   $OUT/flat/res.zip
@@ -41,6 +41,8 @@ zip -q unsigned.apk -j dex/classes*.dex
 mkdir -p resjar
 unzip -o -q "$PAHO" "*.properties" "META-INF/services/*" -d resjar 2>/dev/null || true
 (cd resjar && find . -type f | sed 's|^\./||' | zip -q ../unsigned.apk -@)
+# app assets (Cairo font for captions)
+if [ -d $PROJ/app/src/main/assets ]; then mkdir -p assets && cp -r $PROJ/app/src/main/assets/. assets/ && zip -q -r unsigned.apk assets; fi
 LD_LIBRARY_PATH=/home/hatch/workspace/tools /home/hatch/workspace/tools/zipalign35 -f -P 16 4 unsigned.apk aligned.apk
 
 echo "== sign (release) =="
