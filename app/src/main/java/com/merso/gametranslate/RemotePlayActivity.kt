@@ -290,6 +290,7 @@ class RemotePlayActivity : Activity() {
         })
         bar.addView(tabItem("🎬", Str.p("شرح الاستخدام", "How to Use"), false, null) { goToTab(3) })
         bar.addView(tabItem("✈️", Str.p("تليجرام", "Telegram"), false, null) { goToTab(4) })
+        bar.addView(tabItem("❤", Str.p("دعم", "Support"), false, null) { goToTab(5) })
         hideInPip.add(bar)
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
