@@ -32,6 +32,14 @@ object OcrEngine {
         @Volatile var candidateLines: List<FloatArray> = emptyList()
         @Volatile var staticText: String = ""
         @Volatile var staticSince: Long = 0
+        // Sticky captions: while the same text stays on screen, the shown
+        // caption is refreshed so the TV never auto-hides it; when the text
+        // vanishes for a few frames, the caption is cleared; when the same
+        // text returns, it is sent again (instantly, from translation cache).
+        @Volatile var shown: Boolean = false
+        @Volatile var goneCount: Int = 0
+        @Volatile var lastColor: String? = null
+        @Volatile var lastLines: List<FloatArray> = emptyList()
     }
 
     private val mainState = Stabilizer()
@@ -127,7 +135,7 @@ object OcrEngine {
         return Bitmap.createScaledBitmap(cut, cut.width * 2, cut.height * 2, true)
     }
 
-    fun recognize(bitmap: Bitmap, onText: (String, String?, List<FloatArray>) -> Unit) {
+    fun recognize(bitmap: Bitmap, onText: (String, String?, List<FloatArray>) -> Unit, onEmpty: () -> Unit = {}) {
         val safe = if (bitmap.config == Bitmap.Config.HARDWARE)
             bitmap.copy(Bitmap.Config.ARGB_8888, false) else bitmap
         val image = InputImage.fromBitmap(safe, 0)
@@ -159,6 +167,10 @@ object OcrEngine {
                         }
                     } else emptyList()
                     onText(txt, sampleTextColor(safe, rects), centers)
+                } else {
+                    // OCR ran fine but found no usable text in this crop:
+                    // the subtitle may have left the screen.
+                    onEmpty()
                 }
             }
             .addOnFailureListener { e ->
@@ -232,20 +244,50 @@ object OcrEngine {
     // immediate=true (camera mode): handheld reads are noisy, so send the first
     // good read instead of waiting for 2 identical frames.
     fun processFrame(bitmap: Bitmap, immediate: Boolean = false, onResult: (String, String, String?) -> Unit) {
-        recognize(bitmap) { en, color, _ -> processText(en, immediate, mainState, color) { e2, ar, c, _ -> onResult(e2, ar, c) } }
+        recognize(bitmap, { en, color, _ -> processText(en, immediate, mainState, color) { e2, ar, c, _ -> onResult(e2, ar, c) } })
     }
 
     // Multi-box pipeline: each crop box is OCR'd and stabilized on its own,
     // and results are reported per box (index, en, ar, color, line centers)
     // so the TV can show each translated line at its own position.
-    fun processBoxes(src: Bitmap, boxes: List<FloatArray>, onResult: (Int, String, String, String?, List<FloatArray>) -> Unit) {
+    fun processBoxes(
+        src: Bitmap,
+        boxes: List<FloatArray>,
+        paused: Set<Int> = emptySet(),
+        needReads: Int = 2,
+        minIntervalMs: Long = 1800,
+        onRefresh: (Int, String, String, String?, List<FloatArray>) -> Unit = { _, _, _, _, _ -> },
+        onGone: (Int) -> Unit = {},
+        onResult: (Int, String, String, String?, List<FloatArray>) -> Unit
+    ) {
         if (boxes.isEmpty()) return
         if (boxStates.size != boxes.size) boxStates = List(boxes.size) { Stabilizer() }
         boxes.forEachIndexed { i, frac ->
-            val cropped = cropBitmap(src, frac)
-            recognize(cropped) { txt, color, lines ->
-                processText(txt, false, boxStates[i], color, lines) { en, ar, c, ls -> onResult(i, en, ar, c, ls) }
+            if (i in paused) {
+                // Box paused by the user: skip OCR entirely and reset its
+                // state so resuming starts clean.
+                val st = boxStates[i]
+                st.shown = false
+                st.lastText = ""
+                st.candidate = ""
+                st.candidateCount = 0
+                st.goneCount = 0
+                return@forEachIndexed
             }
+            val cropped = cropBitmap(src, frac)
+            recognize(cropped, { txt, color, lines ->
+                processText(txt, false, boxStates[i], color, lines,
+                    needReads = needReads, minIntervalMs = minIntervalMs,
+                    onRefresh = { en, ar, c, ls -> onRefresh(i, en, ar, c, ls) },
+                    onGone = { onGone(i) }
+                ) { en, ar, c, ls -> onResult(i, en, ar, c, ls) }
+            }, onEmpty = {
+                processText("", false, boxStates[i], null, emptyList(),
+                    needReads = needReads, minIntervalMs = minIntervalMs,
+                    onRefresh = { _, _, _, _ -> },
+                    onGone = { onGone(i) }
+                ) { _, _, _, _ -> }
+            })
         }
     }
 
@@ -287,12 +329,34 @@ object OcrEngine {
             .addOnFailureListener { onDone(0) }
     }
 
-    fun processText(en: String, immediate: Boolean, st: Stabilizer, color: String?, lines: List<FloatArray> = emptyList(), onResult: (String, String, String?, List<FloatArray>) -> Unit) {
+    fun processText(
+        en: String,
+        immediate: Boolean,
+        st: Stabilizer,
+        color: String?,
+        lines: List<FloatArray> = emptyList(),
+        needReads: Int = 2,
+        minIntervalMs: Long = 1800,
+        onRefresh: (String, String, String?, List<FloatArray>) -> Unit = { _, _, _, _ -> },
+        onGone: () -> Unit = {},
+        onResult: (String, String, String?, List<FloatArray>) -> Unit
+    ) {
         if (!looksLikeSubtitle(en, lenient = immediate)) {
             st.candidate = ""
             st.candidateCount = 0
             st.candidateColor = null
             st.candidateLines = emptyList()
+            // The text left the box: after a few empty reads, clear the
+            // caption from the TV and forget it, so the same text coming
+            // back is sent fresh (from cache) right away.
+            st.goneCount++
+            if (st.shown && st.goneCount >= 3) {
+                st.shown = false
+                st.lastText = ""
+                st.lastColor = null
+                st.lastLines = emptyList()
+                onGone()
+            }
             return
         }
         if (immediate) {
@@ -306,16 +370,25 @@ object OcrEngine {
             }
             return
         }
-        // Static UI text (titles, logos) stays forever; subtitles change.
-        // If the same line sits unchanged for over 6 seconds, stop sending it.
-        // "Same" uses similar() so wobbling OCR reads of a static menu still
-        // count as static instead of resetting the timer every frame.
+        // Sticky caption: the text already on the TV is still on screen,
+        // so keep it there — refresh it every few seconds to reset the
+        // TV's auto-hide timer instead of letting it vanish. Only a
+        // clearly different sentence (handled below) replaces it, and it
+        // is cleared only when the text actually leaves the box.
         val nowMs = System.currentTimeMillis()
-        if (similar(en, st.staticText)) {
-            if (nowMs - st.staticSince > 6000) return
-        } else {
-            st.staticText = en
-            st.staticSince = nowMs
+        st.goneCount = 0
+        if (st.shown && similar(en, st.lastText)) {
+            if (nowMs - st.lastSentAt >= 4000) {
+                st.lastSentAt = nowMs
+                val keepText = st.lastText
+                val keepColor = st.lastColor
+                val keepLines = st.lastLines
+                exec.execute {
+                    val ar = Translator.translateEnToAr(keepText)
+                    if (ar.isNotBlank()) onRefresh(keepText, ar, keepColor, keepLines)
+                }
+            }
+            return
         }
         // Accept text seen identically in 2 consecutive frames so partial
         // reads don't flicker; but flush a long line seen once when the
@@ -342,25 +415,32 @@ object OcrEngine {
             if (prevCount == 1 && prev.length >= 12 && prevAge >= 1000 && !similar(prev, st.lastText)) {
                 st.lastText = prev
                 st.lastSentAt = System.currentTimeMillis()
+                st.shown = true
+                st.lastColor = prevColor
+                st.lastLines = prevLines
                 exec.execute {
                     val ar = Translator.translateEnToAr(prev)
                     if (ar.isNotBlank()) onResult(prev, ar, prevColor, prevLines)
                 }
             }
-            return
+            // Fast response mode accepts the very first read.
+            if (needReads > 1) return
         }
-        if (st.candidateCount < 2) return
+        if (st.candidateCount < needReads) return
         val now = System.currentTimeMillis()
         // Locked: same sentence (even read slightly differently) is never
         // re-translated; only a clearly different sentence replaces it.
         if (similar(st.candidate, st.lastText) && now - st.lastSentAt < 15000) return
         // Never replace a caption faster than the viewer can read it.
-        if (st.lastText.isNotEmpty() && now - st.lastSentAt < 1800) return
+        if (st.lastText.isNotEmpty() && now - st.lastSentAt < minIntervalMs) return
         val toSend = st.candidate
         val sendColor = color ?: st.candidateColor
         val sendLines = st.candidateLines
         st.lastText = toSend
         st.lastSentAt = now
+        st.shown = true
+        st.lastColor = sendColor
+        st.lastLines = sendLines
         exec.execute {
             val ar = Translator.translateEnToAr(toSend)
             if (ar.isNotBlank()) onResult(toSend, ar, sendColor, sendLines)
@@ -369,6 +449,7 @@ object OcrEngine {
 
     fun reset() {
         mainState.lastText = ""
-        boxStates.forEach { it.lastText = "" }
+        mainState.shown = false
+        boxStates.forEach { it.lastText = ""; it.shown = false }
     }
 }
