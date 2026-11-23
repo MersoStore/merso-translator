@@ -461,10 +461,23 @@ class StreamController(
                         ocrExec.execute {
                             try {
                                 val boxes = Prefs.crops(ctx)
-                                OcrEngine.processBoxes(bmp, boxes) { i, en, ar, color, lines ->
+                                OcrEngine.processBoxes(bmp, boxes,
+                                    paused = Prefs.pausedBoxes(ctx),
+                                    needReads = Prefs.needReads(ctx),
+                                    minIntervalMs = Prefs.minIntervalMs(ctx),
+                                    onRefresh = { i, en, ar, color, lines ->
+                                        if (!OcrEngine.liveSuppressed()) {
+                                            val b = boxes[i]
+                                            MqttSender.sendLines(ctx, i, b, en, ar, if (Prefs.autoColor(ctx)) color else null, lines, keep = true, size = Prefs.boxSize(ctx, i))
+                                        }
+                                    },
+                                    onGone = { i ->
+                                        if (!OcrEngine.liveSuppressed()) MqttSender.sendClearBox(ctx, i)
+                                    }
+                                ) { i, en, ar, color, lines ->
                                     if (!OcrEngine.liveSuppressed()) {
                                         val b = boxes[i]
-                                        MqttSender.sendLines(ctx, i, b, en, ar, if (Prefs.autoColor(ctx)) color else null, lines)
+                                        MqttSender.sendLines(ctx, i, b, en, ar, if (Prefs.autoColor(ctx)) color else null, lines, size = Prefs.boxSize(ctx, i))
                                         History.add(ctx, en, ar)
                                         Tts.speak(ctx, ar)
                                         main.post { onCaption(ar) }
