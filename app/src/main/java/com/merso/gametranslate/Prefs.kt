@@ -121,6 +121,75 @@ object Prefs {
         if (active.isNotEmpty()) writeProfile(ctx, active, s)
     }
 
+    // Paused boxes: indexes of boxes whose translation is temporarily
+    // stopped (box stays in place, just not translated) — "0,2" etc.
+    fun pausedBoxes(ctx: Context): Set<Int> {
+        val s = sp(ctx).getString("paused_boxes", "") ?: ""
+        if (s.isBlank()) return emptySet()
+        return s.split(",").mapNotNull { it.toIntOrNull() }.toSet()
+    }
+
+    fun setBoxPaused(ctx: Context, index: Int, paused: Boolean) {
+        val cur = pausedBoxes(ctx).toMutableSet()
+        if (paused) cur.add(index) else cur.remove(index)
+        sp(ctx).edit().putString("paused_boxes", cur.sorted().joinToString(",")).apply()
+    }
+
+    fun clearPausedBoxes(ctx: Context) =
+        sp(ctx).edit().putString("paused_boxes", "").apply()
+
+    // Keep paused indexes aligned when a box is deleted: the deleted
+    // index drops out and higher indexes shift down by one.
+    fun onBoxDeleted(ctx: Context, deleted: Int) {
+        val cur = pausedBoxes(ctx)
+        if (cur.isNotEmpty()) {
+            val next = cur.mapNotNull { i ->
+                when {
+                    i == deleted -> null
+                    i > deleted -> i - 1
+                    else -> i
+                }
+            }.toSet()
+            sp(ctx).edit().putString("paused_boxes", next.sorted().joinToString(",")).apply()
+        }
+        val sizes = boxSizes(ctx).toMutableList()
+        if (deleted in sizes.indices) {
+            sizes.removeAt(deleted)
+            sp(ctx).edit().putString("box_sizes", sizes.joinToString(",")).apply()
+        }
+    }
+
+    // Per-box caption font size override ("S"/"M"/"L"/"H"), parallel to
+    // crops; empty entry = use the global TV size. Stored "S,,L" style.
+    fun boxSizes(ctx: Context): List<String> {
+        val s = sp(ctx).getString("box_sizes", "") ?: ""
+        if (s.isEmpty()) return emptyList()
+        return s.split(",")
+    }
+
+    fun boxSize(ctx: Context, index: Int): String? {
+        val v = boxSizes(ctx).getOrNull(index)?.trim()
+        return if (v.isNullOrEmpty()) null else v
+    }
+
+    fun setBoxSize(ctx: Context, index: Int, size: String?) {
+        val boxes = crops(ctx)
+        val cur = boxSizes(ctx).toMutableList()
+        while (cur.size < boxes.size) cur.add("")
+        if (index in cur.indices) cur[index] = size ?: ""
+        sp(ctx).edit().putString("box_sizes", cur.joinToString(",")).apply()
+    }
+
+    fun clearBoxSizes(ctx: Context) =
+        sp(ctx).edit().putString("box_sizes", "").apply()
+
+    // Translation response time: F fast (1 read, short gap) / B balanced
+    // (2 reads) / A accurate (3 reads, longer gap). Default balanced.
+    fun respMode(ctx: Context): String = sp(ctx).getString("resp_mode", "B") ?: "B"
+    fun setRespMode(ctx: Context, v: String) = sp(ctx).edit().putString("resp_mode", v).apply()
+    fun needReads(ctx: Context): Int = when (respMode(ctx)) { "F" -> 1; "A" -> 3; else -> 2 }
+    fun minIntervalMs(ctx: Context): Long = when (respMode(ctx)) { "F" -> 800L; "A" -> 2500L; else -> 1800L }
+
     // Caption display duration on TV: S short / M normal / L long
     fun tvDur(ctx: Context): String = sp(ctx).getString("tv_dur", "M") ?: "M"
     fun setTvDur(ctx: Context, v: String) = sp(ctx).edit().putString("tv_dur", v).apply()
