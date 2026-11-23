@@ -214,8 +214,9 @@ setInput(1);
   var caps = {};
   var timers = {};
   var curStyle = {fontSize:'2.6vw', color:'#fff', background:'rgba(0,0,0,.45)', dur:'M'};
+  var SIZES = {S:'1.8vw', M:'2.6vw', L:'3.4vw', H:'4.4vw'};
   function applyStyle(el){
-    el.style.fontSize = curStyle.fontSize;
+    if (!el.dataset.customSize) el.style.fontSize = curStyle.fontSize;
     el.style.background = curStyle.background;
     if (!el.dataset.custom) el.style.color = curStyle.color;
   }
@@ -242,8 +243,8 @@ setInput(1);
     try {
       var msg = JSON.parse(payload.toString());
       if (topic.slice(-6) === '/style') {
-        var sizes = {S:'1.8vw', M:'2.6vw', L:'3.4vw', H:'4.4vw'};
-        if (msg.size && sizes[msg.size]) curStyle.fontSize = sizes[msg.size];
+        var sizes = SIZES;
+        if (msg.size && SIZES[msg.size]) curStyle.fontSize = SIZES[msg.size];
         if (msg.color) curStyle.color = (msg.color === 'yellow') ? '#FFD400' : '#fff';
         if (typeof msg.bg === 'number') curStyle.background = 'rgba(0,0,0,' + (msg.bg/100) + ')';
         if (msg.dur) curStyle.dur = msg.dur;
@@ -278,6 +279,8 @@ setInput(1);
         var y = (typeof msg.y === 'number') ? msg.y : 0.9;
         var el = getCap(box);
         el.textContent = msg.ar;
+        if (msg.size && SIZES[msg.size]) { el.style.fontSize = SIZES[msg.size]; el.dataset.customSize = '1'; }
+        else { el.style.fontSize = curStyle.fontSize; el.dataset.customSize = ''; }
         if (msg.color) { el.style.color = msg.color; el.dataset.custom = '1'; }
         else { el.style.color = curStyle.color; el.dataset.custom = ''; }
         el.style.left = (x * 100) + '%';
