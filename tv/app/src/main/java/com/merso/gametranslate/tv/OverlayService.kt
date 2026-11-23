@@ -52,6 +52,8 @@ class OverlayService : Service() {
     private var container: android.widget.FrameLayout? = null
     private val captionViews = mutableMapOf<Int, TextView>()
     private val hideRunnables = mutableMapOf<Int, Runnable>()
+    // Per-box font size override (sp) sent by the phone; absent = global size
+    private val customSizeByBox = mutableMapOf<Int, Float>()
     @Volatile private var client: MqttClient? = null
     private var code = ""
     @Volatile private var destroyed = false
@@ -175,24 +177,24 @@ class OverlayService : Service() {
                 android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        applyStyleTo(tv)
+        applyStyleTo(tv, box)
         container?.addView(tv)
         captionViews[box] = tv
         return tv
     }
 
     private fun applyStyle() {
-        captionViews.values.forEach { applyStyleTo(it) }
+        for ((k, v) in captionViews) applyStyleTo(v, k)
     }
 
-    private fun applyStyleTo(tv: TextView) {
-        val sizeSp = when (TvPrefs.styleSize(this)) {
+    private fun applyStyleTo(tv: TextView, box: Int = -1) {
+        val custom = customSizeByBox[box]
+        tv.textSize = custom ?: when (TvPrefs.styleSize(this)) {
             "S" -> 17f
             "L" -> 33f
             "H" -> 42f
             else -> 25f
         }
-        tv.textSize = sizeSp
         if (tv.tag != "custom") {
             tv.setTextColor(if (TvPrefs.styleColor(this) == "yellow") Color.parseColor("#FFD400") else Color.WHITE)
         }
@@ -203,10 +205,20 @@ class OverlayService : Service() {
         }
     }
 
-    private fun showCaption(ar: String, box: Int, x: Float, y: Float, colorHex: String?) {
+    private fun showCaption(ar: String, box: Int, x: Float, y: Float, colorHex: String?, size: String? = null) {
         main.post {
             val tv = getCaptionView(box)
             tv.text = ar
+            if (size != null) {
+                customSizeByBox[box] = when (size) {
+                    "S" -> 17f
+                    "L" -> 33f
+                    "H" -> 42f
+                    else -> 25f
+                }
+            } else {
+                customSizeByBox.remove(box)
+            }
             if (colorHex != null) {
                 try {
                     tv.setTextColor(Color.parseColor(colorHex))
@@ -214,8 +226,8 @@ class OverlayService : Service() {
                 } catch (_: Exception) {}
             } else {
                 tv.tag = null
-                applyStyleTo(tv)
             }
+            applyStyleTo(tv, box)
             tv.visibility = View.VISIBLE
             val screenW = resources.displayMetrics.widthPixels
             val screenH = resources.displayMetrics.heightPixels
@@ -296,7 +308,8 @@ class OverlayService : Service() {
                                                 val x = if (msg.has("x")) msg.getDouble("x").toFloat() else 0.5f
                                                 val y = if (msg.has("y")) msg.getDouble("y").toFloat() else 0.9f
                                                 val color = msg.optString("color").ifBlank { null }
-                                                showCaption(ar, box, x, y, color)
+                                                val size = msg.optString("size").ifBlank { null }
+                                                showCaption(ar, box, x, y, color, size)
                                             }
                                         }
                                     }
