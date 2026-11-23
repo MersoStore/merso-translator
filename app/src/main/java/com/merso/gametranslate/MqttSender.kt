@@ -124,18 +124,20 @@ object MqttSender {
     // translated line goes to its own spot inside the box; otherwise a
     // single caption at the box center. The group's old captions are
     // cleared first so stale lines never linger.
-    fun sendLines(ctx: Context, group: Int, box: FloatArray, en: String, ar: String, color: String?, lines: List<FloatArray>) {
+    fun sendLines(ctx: Context, group: Int, box: FloatArray, en: String, ar: String, color: String?, lines: List<FloatArray>, keep: Boolean = false, size: String? = null) {
         val arLines = ar.split("\n")
         val enLines = en.split("\n")
-        sendClearBox(ctx, group)
+        // keep=true: sticky refresh of the caption already on screen —
+        // resend without clearing first so it never flickers.
+        if (!keep) sendClearBox(ctx, group)
         if (lines.isNotEmpty() && lines.size == arLines.size) {
             for (j in lines.indices) {
                 val fx = box[0] + lines[j][0] * (box[2] - box[0])
                 val fy = box[1] + lines[j][1] * (box[3] - box[1])
-                sendCaption(ctx, enLines.getOrElse(j) { en }, arLines[j], group * 10 + j, fx, fy, color)
+                sendCaption(ctx, enLines.getOrElse(j) { en }, arLines[j], group * 10 + j, fx, fy, color, size)
             }
         } else {
-            sendCaption(ctx, en, ar, group, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f, color)
+            sendCaption(ctx, en, ar, group, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f, color, size)
         }
     }
 
@@ -144,7 +146,7 @@ object MqttSender {
     // bottom-caption behavior for callers without boxes (camera mode).
     // color ("#RRGGBB") when non-null: the TV shows the caption in that
     // color (auto mode = the game's own text color sampled from the frame).
-    fun sendCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float, color: String?) {
+    fun sendCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float, color: String?, size: String? = null) {
         val code = Prefs.code(ctx)
         if (code.length < 4 || ar.isBlank()) return
         exec.execute {
@@ -160,6 +162,7 @@ object MqttSender {
                         put("y", y.toDouble())
                     }
                     if (color != null) put("color", color)
+                    if (size != null) put("size", size)
                 }.toString()
                 client?.publish(topic(code, "sub"), MqttMessage(payload.toByteArray()).apply { qos = 0 })
             } catch (e: Exception) {
