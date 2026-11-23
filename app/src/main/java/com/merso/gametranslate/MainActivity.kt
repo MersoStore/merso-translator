@@ -37,6 +37,7 @@ class MainActivity : Activity() {
     private lateinit var settingsScroll: ScrollView
     private lateinit var howtoScroll: ScrollView
     private lateinit var telegramScroll: ScrollView
+    private lateinit var supportScroll: ScrollView
     private var howtoWeb: android.webkit.WebView? = null
     private var howtoLoaded = false
     private lateinit var step1Body: LinearLayout
@@ -349,6 +350,39 @@ class MainActivity : Activity() {
         }
         frame.addView(telegramScroll)
 
+        // ---------- Support tab ----------
+        val supRoot = Ui.screenRoot(this)
+        supRoot.setPadding(dp(18), dp(24), dp(18), dp(110))
+        supRoot.addView(Ui.header(this, Str.p("❤ دعم المطوّر", "❤ Support the Developer"), Str.p("التطبيق مجاني وهيضل مجاني", "The app is free and will stay free")))
+        val supCard = Ui.card(this)
+        supCard.addView(Ui.cardTitle(this, Str.p("ادعم استمرار التطبيق", "Support the app")))
+        supCard.addView(Ui.bodyText(this, Str.p(
+            "Merso Translator مجاني بالكامل ومن غير اشتراك، وهيضل كده. لو التطبيق عجبك وساعدك تلعب بالعربي، دعمك بيساعدنا نكمل تطويره ونضيف مميزات جديدة. شكرًا ليك ❤",
+            "Merso Translator is completely free with no subscription, and it will stay that way. If the app helped you play in Arabic, your support helps us keep developing it and adding new features. Thank you ❤"
+        ), 15f, Ui.TEXT))
+        supCard.addView(Ui.primaryButton(this, Str.p("❤ صفحة الدعم", "❤ Support Page")).apply {
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://creators.sa/mersogaming")))
+                } catch (_: Exception) {}
+            }
+        })
+        supCard.addView(Ui.bodyText(this, Str.p("ادعم بمبلغ بسيط من صفحة الدعم", "Support with a small amount via the support page"), 14f, Ui.MUTED))
+        supCard.addView(Ui.primaryButton(this, Str.p("الاشتراك في القناة", "Subscribe to the Channel")).apply {
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.youtube.com/@mersostore?sub_confirmation=1")))
+                } catch (_: Exception) {}
+            }
+        })
+        supCard.addView(Ui.bodyText(this, Str.p("اشتراكك في القناة دعم كبير ومجاني", "Subscribing is a big, free way to support"), 14f, Ui.MUTED))
+        supRoot.addView(supCard)
+        supportScroll = ScrollView(this).apply {
+            addView(supRoot)
+            visibility = View.GONE
+        }
+        frame.addView(supportScroll)
+
         // ---------- Bottom tab bar ----------
         val bar = LinearLayout(this).apply {
             tabBar = this
@@ -465,6 +499,31 @@ class MainActivity : Activity() {
         tabIcons.add(tgIcon)
         tabLabels.add(tgLabel)
         bar.addView(tgItem)
+        val supItem = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(5), dp(4), dp(5))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnClickListener { selectTab(5) }
+        }
+        val supIcon = TextView(this).apply {
+            text = "❤"
+            textSize = 18f
+            setTextColor(Color.parseColor("#FF2E4D"))
+            gravity = Gravity.CENTER
+        }
+        val supLabel = TextView(this).apply {
+            text = Str.p("دعم", "Support")
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(2), 0, 0)
+        }
+        supItem.addView(supIcon)
+        supItem.addView(supLabel)
+        tabItems.add(supItem)
+        tabIcons.add(supIcon)
+        tabLabels.add(supLabel)
+        bar.addView(supItem)
         frame.addView(bar)
 
         // Mini player: keeps the stream visible here after leaving Remote Play
@@ -662,6 +721,7 @@ class MainActivity : Activity() {
                 guideScroll.visibility = View.GONE
                 settingsScroll.visibility = View.GONE
                 telegramScroll.visibility = View.GONE
+                supportScroll.visibility = View.GONE
                 tabBar.visibility = View.GONE
                 miniClose.visibility = View.GONE
                 miniBox.translationX = 0f
@@ -852,6 +912,22 @@ class MainActivity : Activity() {
         )
         val seek = SeekBar(this).apply { max = 100 }
         val pctLabel = Ui.bodyText(this, "", 15f, Ui.TEXT)
+        var pauseBtn: Button? = null
+        var boxSizeContainer: LinearLayout? = null
+        fun refreshBoxSizeRow() {
+            val c = boxSizeContainer ?: return
+            c.removeAllViews()
+            val cur = Prefs.boxSize(this@MainActivity, selectedBox)
+            val idx = when (cur) { "S" -> 1; "M" -> 2; "L" -> 3; "H" -> 4; else -> 0 }
+            c.addView(segmented(
+                listOf(
+                    Str.p("عام", "Global"), Str.p("صغير", "Small"), Str.p("عادي", "Normal"),
+                    Str.p("كبير", "Large"), Str.p("ضخم", "Huge")
+                ), idx
+            ) { i ->
+                Prefs.setBoxSize(this@MainActivity, selectedBox, listOf(null, "S", "M", "L", "H")[i])
+            })
+        }
         fun refreshSeek() {
             val boxes = Prefs.crops(this@MainActivity)
             selectedBox = selectedBox.coerceIn(0, boxes.lastIndex)
@@ -861,6 +937,11 @@ class MainActivity : Activity() {
             seek.progress = v
             pctLabel.text = "$v%"
             preview.invalidate()
+            pauseBtn?.text = if (selectedBox in Prefs.pausedBoxes(this@MainActivity))
+                Str.p("▶ تشغيل ترجمة المربع", "▶ Resume Box Translation")
+            else
+                Str.p("⏸ إيقاف ترجمة المربع", "⏸ Pause Box Translation")
+            refreshBoxSizeRow()
         }
         areaCard.addView(segmented(edges, edge) { i ->
             edge = i
@@ -930,7 +1011,9 @@ class MainActivity : Activity() {
                     Toast.makeText(this@MainActivity, Str.p("لازم يفضل مربع واحد على الأقل", "At least one box must remain"), Toast.LENGTH_SHORT).show()
                 } else {
                     selectedBox = selectedBox.coerceIn(0, boxes.lastIndex)
-                    boxes.removeAt(selectedBox)
+                    val deleted = selectedBox
+                    boxes.removeAt(deleted)
+                    Prefs.onBoxDeleted(this@MainActivity, deleted)
                     selectedBox = minOf(selectedBox, boxes.lastIndex)
                     Prefs.setCrops(this@MainActivity, boxes)
                     refreshSeek()
@@ -938,6 +1021,31 @@ class MainActivity : Activity() {
             }
         })
         areaCard.addView(boxBtnRow)
+        // Pause/resume translation for the selected box without deleting it
+        pauseBtn = Ui.secondaryButton(this, Str.p("⏸ إيقاف ترجمة المربع", "⏸ Pause Box Translation")).apply {
+            setOnClickListener {
+                val boxesNow = Prefs.crops(this@MainActivity)
+                selectedBox = selectedBox.coerceIn(0, boxesNow.lastIndex)
+                val nowPaused = selectedBox !in Prefs.pausedBoxes(this@MainActivity)
+                Prefs.setBoxPaused(this@MainActivity, selectedBox, nowPaused)
+                if (nowPaused) {
+                    // Take this box's caption off the TV right away
+                    MqttSender.sendClearBox(this@MainActivity, selectedBox)
+                    Toast.makeText(this@MainActivity, Str.p("اتوقفت ترجمة المربع ${selectedBox + 1} ⏸", "Box ${selectedBox + 1} translation paused ⏸"), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@MainActivity, Str.p("اشتغلت ترجمة المربع ${selectedBox + 1} ▶", "Box ${selectedBox + 1} translation resumed ▶"), Toast.LENGTH_SHORT).show()
+                }
+                refreshSeek()
+            }
+        }
+        areaCard.addView(pauseBtn)
+        // Per-box font size: applies to the selected box only
+        areaCard.addView(Ui.bodyText(this, Str.p("حجم خط المربع المحدد", "Selected Box Font Size"), 15f, Ui.TEXT).apply {
+            setPadding(0, dp(10), 0, 0)
+        })
+        boxSizeContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        areaCard.addView(boxSizeContainer)
+        refreshBoxSizeRow()
 
         // Game profiles: named box layouts, switch per game
         val profileLabel = Ui.bodyText(this, "", 14f, Ui.GOLD)
@@ -981,6 +1089,8 @@ class MainActivity : Activity() {
                         layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                         setOnClickListener {
                             Prefs.setCrops(this@MainActivity, boxes.map { it.copyOf() })
+                            Prefs.clearPausedBoxes(this@MainActivity)
+                            Prefs.clearBoxSizes(this@MainActivity)
                             Prefs.setActiveProfile(this@MainActivity, name)
                             selectedBox = 0
                             refreshSeek()
@@ -1033,6 +1143,8 @@ class MainActivity : Activity() {
         areaCard.addView(Ui.secondaryButton(this, Str.p("رجوع للوضع الافتراضي", "Reset to Default")).apply {
             setOnClickListener {
                 Prefs.setCrops(this@MainActivity, listOf(floatArrayOf(0.15f, 0.75f, 0.85f, 0.99f)))
+                Prefs.clearPausedBoxes(this@MainActivity)
+                Prefs.clearBoxSizes(this@MainActivity)
                 selectedBox = 0
                 refreshSeek()
                 preview.postInvalidate()
@@ -1051,6 +1163,26 @@ class MainActivity : Activity() {
         }
         refreshSeek()
         sRoot.addView(areaCard)
+
+        // Translation response time: how fast a new line is accepted
+        val respCard = Ui.card(this)
+        respCard.addView(Ui.cardTitle(this, Str.p("زمن استجابة الترجمة", "Translation Response Time")))
+        val respIdx = when (Prefs.respMode(this)) { "F" -> 0; "A" -> 2; else -> 1 }
+        respCard.addView(segmented(
+            listOf(Str.p("سريع", "Fast"), Str.p("متوازن", "Balanced"), Str.p("دقيق", "Accurate")),
+            respIdx
+        ) { i ->
+            Prefs.setRespMode(this, listOf("F", "B", "A")[i])
+        })
+        respCard.addView(Ui.bodyText(
+            this,
+            Str.p(
+                "سريع: الترجمة تظهر من أول قراية — أسرع بس ممكن تهتز في الخطوط المزخرفة. متوازن: الوضع العادي. دقيق: أثبت حاجة وأبطأ شوية.",
+                "Fast: the translation appears from the first read — quickest, but may wobble on stylized fonts. Balanced: the normal mode. Accurate: steadiest, slightly slower."
+            ),
+            13f, Ui.MUTED
+        ))
+        sRoot.addView(respCard)
 
         // Look on TV
         val lookCard = Ui.card(this)
@@ -1254,6 +1386,7 @@ class MainActivity : Activity() {
         settingsScroll.visibility = if (index == 2) View.VISIBLE else View.GONE
         howtoScroll.visibility = if (index == 3) View.VISIBLE else View.GONE
         telegramScroll.visibility = if (index == 4) View.VISIBLE else View.GONE
+        supportScroll.visibility = if (index == 5) View.VISIBLE else View.GONE
         if (index == 3) {
             howtoWeb?.onResume()
             if (!howtoLoaded) {
@@ -1286,6 +1419,7 @@ class MainActivity : Activity() {
             1 -> guideScroll.getChildAt(0) as? LinearLayout
             2 -> settingsScroll.getChildAt(0) as? LinearLayout
             4 -> telegramScroll.getChildAt(0) as? LinearLayout
+            5 -> supportScroll.getChildAt(0) as? LinearLayout
             else -> null
         }
         if (content != null) Ui.animateChildren(content)
@@ -1467,6 +1601,7 @@ class MainActivity : Activity() {
                 )
             }
             val boxes = Prefs.crops(context)
+            val paused = Prefs.pausedBoxes(context)
             boxes.forEachIndexed { i, c ->
                 val l = c[0] * width
                 val t = c[1] * height
@@ -1475,7 +1610,7 @@ class MainActivity : Activity() {
                 val sel = i == selectedIndex
                 canvas.drawRect(l, t, r, b, if (sel) selFillPaint else fillPaint)
                 canvas.drawRect(l, t, r, b, if (sel) selPaint else framePaint)
-                canvas.drawText("${i + 1}", l + 10f, t + 42f, numPaint)
+                canvas.drawText(if (i in paused) "${i + 1} ⏸" else "${i + 1}", l + 10f, t + 42f, numPaint)
             }
         }
     }
