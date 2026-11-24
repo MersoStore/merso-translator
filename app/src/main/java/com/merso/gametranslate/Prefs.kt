@@ -109,6 +109,11 @@ object Prefs {
         return listOf(crop(ctx))
     }
 
+    // Profiles are snapshots: they change ONLY via an explicit
+    // "Save as Profile". Editing the live boxes must never silently
+    // rewrite the saved profile — that was the broken switching:
+    // saving www (2 boxes), then adding a 3rd box, silently overwrote
+    // www with 3 boxes, so loading www later showed the same 3 boxes.
     fun setCrops(ctx: Context, boxes: List<FloatArray>) {
         val s = boxes.joinToString(";") { "${it[0]},${it[1]},${it[2]},${it[3]}" }
         val e = sp(ctx).edit().putString("crops", s)
@@ -116,9 +121,6 @@ object Prefs {
             e.putString("crop3", "${boxes[0][0]},${boxes[0][1]},${boxes[0][2]},${boxes[0][3]}")
         }
         e.apply()
-        // Keep the active game profile in sync with the live boxes
-        val active = activeProfile(ctx)
-        if (active.isNotEmpty()) writeProfile(ctx, active, s)
     }
 
     // Paused boxes: indexes of boxes whose translation is temporarily
