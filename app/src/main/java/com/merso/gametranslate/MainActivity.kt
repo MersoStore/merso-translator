@@ -1143,10 +1143,12 @@ class MainActivity : Activity() {
         areaCard.addView(Ui.secondaryButton(this, Str.p("رجوع للوضع الافتراضي", "Reset to Default")).apply {
             setOnClickListener {
                 Prefs.setCrops(this@MainActivity, listOf(floatArrayOf(0.15f, 0.75f, 0.85f, 0.99f)))
+                Prefs.setActiveProfile(this@MainActivity, "")
                 Prefs.clearPausedBoxes(this@MainActivity)
                 Prefs.clearBoxSizes(this@MainActivity)
                 selectedBox = 0
                 refreshSeek()
+                refreshProfileLabel()
                 preview.postInvalidate()
                 Toast.makeText(this@MainActivity, Str.p("رجعنا للوضع الافتراضي ✓", "Reset to default ✓"), Toast.LENGTH_SHORT).show()
             }
