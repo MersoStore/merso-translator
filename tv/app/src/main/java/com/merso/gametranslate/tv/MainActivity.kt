@@ -138,6 +138,7 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(root) })
         toggleBtn.requestFocus()
         refreshUi()
+        TvStats.pingDaily(this)
         TvUpdater.checkOnLaunch(this)
     }
 
