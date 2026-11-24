@@ -19,7 +19,7 @@ echo "== aapt2 link =="
 $BT/aapt2 link \
   --manifest $PROJ/app/src/main/AndroidManifest.xml \
   -I $AJAR \
-  --min-sdk-version 26 --target-sdk-version 34 --version-code 11 --version-name 2.1.0 \
+  --min-sdk-version 26 --target-sdk-version 34 --version-code 12 --version-name 2.1.1 \
   --java $OUT/gen \
   -o $OUT/base.apk \
   $OUT/flat/res.zip
