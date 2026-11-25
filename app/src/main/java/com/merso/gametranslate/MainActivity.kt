@@ -40,6 +40,8 @@ class MainActivity : Activity() {
     private lateinit var supportScroll: ScrollView
     private var howtoWeb: android.webkit.WebView? = null
     private var howtoLoaded = false
+    private var screenTypeLabel: TextView? = null
+    private var consoleTypeLabel: TextView? = null
     private lateinit var step1Body: LinearLayout
     private lateinit var step1Chevron: TextView
     private lateinit var step1Check: TextView
@@ -138,7 +140,8 @@ class MainActivity : Activity() {
         val (hs, _) = stepHeader(1, Str.p("إعداد الشاشة", "Screen Setup")) { openGuide(0) }
         stepSettingsCard.addView(hs)
         stepSettingsCard.addView(Ui.bodyText(this, Str.p("شرح ربط الشاشة بالتليفون خطوة بخطوة", "Step-by-step guide to pair the screen with the phone"), 14f, Ui.MUTED))
-        root.addView(stepSettingsCard)
+        // Old steps interface removed: pairing now lives in the setup
+        // wizard; the Translate tab goes straight to the stream step.
 
         // Step 2: TV pairing
         val step1Card = Ui.card(this)
@@ -206,7 +209,6 @@ class MainActivity : Activity() {
             15f, Ui.GOLD
         ).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
         step1Card.addView(step1Body)
-        root.addView(step1Card)
 
         // Step 3: PS5 setup guide (appears after pairing)
         step3Card = Ui.card(this)
@@ -216,7 +218,6 @@ class MainActivity : Activity() {
         }
         step3Card.addView(h3)
         step3Card.addView(Ui.bodyText(this, Str.p("شرح إعداد الـPS5 للترجمة", "How to set up the PS5 for translation"), 14f, Ui.MUTED))
-        root.addView(step3Card)
 
         // Step 4: Remote Play (appears after PS5 setup step)
         step2Card = Ui.card(this)
@@ -228,7 +229,7 @@ class MainActivity : Activity() {
                 startActivity(Intent(this@MainActivity, RemotePlayActivity::class.java))
             }
         })
-        root.addView(step2Card)
+
 
         TvServer.init(this)
         TvServer.start()
@@ -596,7 +597,7 @@ class MainActivity : Activity() {
         frame.addView(miniBox)
 
         setContentView(frame)
-        selectTab(0)
+        selectTab(1)
         Ui.animateChildren(root)
 
         MqttSender.connect(this)
@@ -653,6 +654,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         suppressPip = false
+        refreshScreenTypeLabel()
+        refreshConsoleTypeLabel()
         val c = StreamHolder.controller
         if (c != null && c.running && ::miniBox.isInitialized) {
             miniBox.visibility = View.VISIBLE
@@ -1297,6 +1300,38 @@ class MainActivity : Activity() {
         })
         sRoot.addView(lookCard)
 
+        // TV type (chosen in the setup flow; changeable here)
+        val screenCard = Ui.card(this)
+        screenCard.addView(Ui.cardTitle(this, Str.p("نوع الشاشة", "TV Type")))
+        screenTypeLabel = Ui.bodyText(this, "", 15f, Ui.TEXT)
+        screenCard.addView(screenTypeLabel)
+        screenCard.addView(Ui.bodyText(this, Str.p("غيّر نوع الشاشة لو بدّلت التلفزيون أو عايز تراجع شرح التثبيت.", "Change the TV type if you switched TVs or want to review the setup steps."), 14f, Ui.MUTED))
+        screenCard.addView(Ui.secondaryButton(this, Str.p("تغيير نوع الشاشة", "Change TV Type")).apply {
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, ScreenTypeActivity::class.java).apply {
+                    putExtra("from_settings", true)
+                })
+            }
+        })
+        sRoot.addView(screenCard)
+        refreshScreenTypeLabel()
+
+        // Console type (online / modded; changeable here)
+        val consoleCard = Ui.card(this)
+        consoleCard.addView(Ui.cardTitle(this, Str.p("نوع الجهاز", "Console Type")))
+        consoleTypeLabel = Ui.bodyText(this, "", 15f, Ui.TEXT)
+        consoleCard.addView(consoleTypeLabel)
+        consoleCard.addView(Ui.bodyText(this, Str.p("غيّر نوع الجهاز لو عايز تراجع شرح إعداد الأونلاين أو المعدل.", "Change the console type to review the online or modded setup guide."), 14f, Ui.MUTED))
+        consoleCard.addView(Ui.secondaryButton(this, Str.p("تغيير نوع الجهاز", "Change Console Type")).apply {
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, ConsoleTypeActivity::class.java).apply {
+                    putExtra("from_settings", true)
+                })
+            }
+        })
+        sRoot.addView(consoleCard)
+        refreshConsoleTypeLabel()
+
         // Language
         val langCard = Ui.card(this)
         langCard.addView(Ui.cardTitle(this, Str.p("لغة التطبيق", "App Language")))
@@ -1365,6 +1400,26 @@ class MainActivity : Activity() {
         return sRoot
     }
 
+    private fun refreshScreenTypeLabel() {
+        val label = screenTypeLabel ?: return
+        val name = when (Prefs.screenType(this)) {
+            "lg" -> "LG"
+            "android_tv" -> "Android TV / Google TV"
+            else -> Str.p("لسه مخترتش", "Not chosen yet")
+        }
+        label.text = Str.p("النوع الحالي: $name", "Current type: $name")
+    }
+
+    private fun refreshConsoleTypeLabel() {
+        val label = consoleTypeLabel ?: return
+        val name = when (Prefs.consoleType(this)) {
+            "online" -> Str.p("أونلاين", "Online")
+            "modded" -> Str.p("معدل", "Modded")
+            else -> Str.p("لسه مخترتش", "Not chosen yet")
+        }
+        label.text = Str.p("النوع الحالي: $name", "Current type: $name")
+    }
+
     private fun langButton(text: String, selected: Boolean, onClick: () -> Unit): Button {
         val b = if (selected) Ui.primaryButton(this, text) else Ui.secondaryButton(this, text)
         b.setOnClickListener { onClick() }
@@ -1382,6 +1437,14 @@ class MainActivity : Activity() {
     }
 
     private fun selectTab(index: Int) {
+        // The Translate tab is the stream step now: pairing lives in the
+        // setup wizard, so Translate goes straight to Step 3.
+        if (index == 0) {
+            startActivity(Intent(this, RemotePlayActivity::class.java).apply {
+                putExtra("to_stream_step", true)
+            })
+            return
+        }
         currentTab = index
         translateScroll.visibility = if (index == 0) View.VISIBLE else View.GONE
         guideScroll.visibility = if (index == 1) View.VISIBLE else View.GONE
