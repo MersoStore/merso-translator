@@ -498,17 +498,17 @@ class FakeSignInActivity : Activity() {
         Prefs.setHostIp(this, currentIp())
         Prefs.setPinVerified(this, false)
         setStatus(Str.p(
-            "تمام ✓ الحساب «${a.name}» جاهز للريموت بلاي من غير PSN. اعمل إعادة تشغيل للجهاز وكمل من الخطوة ٣ تحت",
-            "Done ✓ account “${a.name}” is ready for Remote Play without PSN. Restart the console and continue from Step 3 below"
+            "تمام ✓ الحساب «${a.name}» جاهز للريموت بلاي من غير PSN. اعمل إعادة تشغيل للجهاز وبعدين ارجع اكتب الـPIN الجديد",
+            "Done ✓ account “${a.name}” is ready for Remote Play without PSN. Restart the console, then go back and enter the new PIN"
         ), "#2ED573")
         doneBox.visibility = View.VISIBLE
         AlertDialog.Builder(this)
             .setTitle(Str.p("⚠️ خطوات إجبارية قبل البث", "⚠️ Mandatory steps before streaming"))
             .setMessage(Str.p(
-                "١) اعمل إعادة تشغيل (Restart) للـPS5.\n٢) سجّل دخول على الجهاز بنفس الحساب «${a.name}» وخليه هو الحساب اللي شغال قدامك.\n٣) ⚠️ روح الإعدادات ← النظام ← Remote Play وشغّل «Enable Remote Play» (ON) للحساب ده — من غيرها البث هيترفض حتى لو الـPIN اتحفظ.\n٤) افتح ربط جهاز (Link Device) وخد رقم PIN جديد.\n٥) في التطبيق: الخطوة ٢ حط الـPIN الجديد ودوس حفظ، وبعدين بدء البث.\n\nالربط القديم اتمسح، فالـPIN القديم مش هيشتغل. وخلي الجهاز أوفلاين أو احجب PSN (nanoDNS) عشان التسجيل الوهمي ميتلغيش.",
-                "1) Restart the PS5.\n2) Log in on the console with the same account “${a.name}” and keep it on screen.\n3) ⚠️ Go to Settings → System → Remote Play and turn ON “Enable Remote Play” for this account — without it the stream will be refused even if the PIN saved fine.\n4) Open Link Device and get a NEW PIN.\n5) In the app: enter the NEW PIN in Step 2, tap Save, then Start Stream.\n\nThe old pairing was cleared, so the old PIN won't work. Keep the console offline or block PSN (nanoDNS) so the fake sign-in isn't cleared."
+                "١) اعمل إعادة تشغيل (Restart) للـPS5.\n٢) سجّل دخول على الجهاز بنفس الحساب «${a.name}» وخليه هو الحساب اللي شغال قدامك.\n٣) ⚠️ روح الإعدادات ← النظام ← Remote Play وشغّل «Enable Remote Play» (ON) للحساب ده — من غيرها البث هيترفض حتى لو الـPIN اتحفظ.\n٤) افتح ربط جهاز (Link Device) وخد رقم PIN جديد.\n٥) ارجع وحط الـPIN الجديد ودوس «حفظ الرقم وربط»، وبعدين بدء البث.\n\nالربط القديم اتمسح، فالـPIN القديم مش هيشتغل. وخلي الجهاز أوفلاين أو احجب PSN (nanoDNS) عشان التسجيل الوهمي ميتلغيش.",
+                "1) Restart the PS5.\n2) Log in on the console with the same account “${a.name}” and keep it on screen.\n3) ⚠️ Go to Settings → System → Remote Play and turn ON “Enable Remote Play” for this account — without it the stream will be refused even if the PIN saved fine.\n4) Open Link Device and get a NEW PIN.\n5) Go back, enter the NEW PIN, tap 'Save Code & Pair', then Start Stream.\n\nThe old pairing was cleared, so the old PIN won't work. Keep the console offline or block PSN (nanoDNS) so the fake sign-in isn't cleared."
             ))
-            .setPositiveButton(Str.p("تمام", "OK"), null)
+            .setPositiveButton(Str.p("تمام", "OK")) { _, _ -> finish() }
             .show()
         // Best effort: stop the payload server on the console.
         val ip = currentIp()
@@ -531,6 +531,8 @@ class FakeSignInActivity : Activity() {
     }
 
     override fun onBackPressed() {
-        Nav.goHome(this)
+        // Return to whoever opened fake activation (wizard PIN card or
+        // Remote Play), not the main interface.
+        finish()
     }
 }
