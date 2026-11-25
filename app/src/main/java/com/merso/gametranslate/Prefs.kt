@@ -11,6 +11,22 @@ object Prefs {
     fun introSeen(ctx: Context): Boolean = sp(ctx).getBoolean("intro_seen", false)
     fun setIntroSeen(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("intro_seen", v).apply()
 
+    // TV type chosen during setup: "lg" / "android_tv".
+    fun screenType(ctx: Context): String = sp(ctx).getString("screen_type", "") ?: ""
+    fun setScreenType(ctx: Context, v: String) = sp(ctx).edit().putString("screen_type", v).apply()
+
+    // True once the user picked a TV type and saw its setup guide.
+    fun screenSetupDone(ctx: Context): Boolean = sp(ctx).getBoolean("screen_setup_done", false)
+    fun setScreenSetupDone(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("screen_setup_done", v).apply()
+
+    // Console type chosen during setup: "online" (official PSN) / "modded" (jailbroken).
+    fun consoleType(ctx: Context): String = sp(ctx).getString("console_type", "") ?: ""
+    fun setConsoleType(ctx: Context, v: String) = sp(ctx).edit().putString("console_type", v).apply()
+
+    // True once the user picked a console type and saw its setup guide.
+    fun consoleSetupDone(ctx: Context): Boolean = sp(ctx).getBoolean("console_setup_done", false)
+    fun setConsoleSetupDone(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("console_setup_done", v).apply()
+
 
     fun code(ctx: Context): String = sp(ctx).getString("code", "") ?: ""
     fun setCode(ctx: Context, v: String) = sp(ctx).edit().putString("code", v).apply()
