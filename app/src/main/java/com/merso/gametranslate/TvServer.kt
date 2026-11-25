@@ -183,10 +183,16 @@ object TvServer {
 <div id="caps"></div>
 <script>
 var uiHidden = false;
+// ext://hdmi embedding is LG webOS-only. On non-webOS browsers
+// non-webOS browsers) the page cannot show the game picture, so it runs
+// captions-only: no HDMI buttons, bigger captions, code box auto-hides
+// once the phone connects (made for Multi View next to the HDMI game).
+var isWebOS = /webOS|Web0S/i.test(navigator.userAgent || '');
+window.__nonWebOS = !isWebOS;
 function toggleUi(){
   uiHidden = !uiHidden;
   document.getElementById('codeBox').style.display = uiHidden ? 'none' : 'block';
-  document.getElementById('inputs').style.display = uiHidden ? 'none' : 'block';
+  document.getElementById('inputs').style.display = (uiHidden || !isWebOS) ? 'none' : 'block';
   var b = document.getElementById('hideBtn');
   b.style.textDecoration = uiHidden ? 'line-through' : 'none';
   b.style.opacity = uiHidden ? '.45' : '.8';
@@ -202,7 +208,8 @@ function setInput(n){
   var p = v.play();
   if (p && p.catch) p.catch(function(){});
 }
-setInput(1);
+if (isWebOS) { setInput(1); }
+else { document.getElementById('inputs').style.display = 'none'; }
 </script>
 <script>
 (function(){
@@ -215,6 +222,11 @@ setInput(1);
   var timers = {};
   var curStyle = {fontSize:'2.6vw', color:'#fff', background:'rgba(0,0,0,.45)', dur:'M'};
   var SIZES = {S:'1.8vw', M:'2.6vw', L:'3.4vw', H:'4.4vw'};
+  if (window.__nonWebOS) {
+    // Captions-only window (split-screen next to HDMI): bigger text.
+    SIZES = {S:'3vw', M:'4.2vw', L:'5.4vw', H:'7vw'};
+    curStyle.fontSize = SIZES.M;
+  }
   function applyStyle(el){
     if (!el.dataset.customSize) el.style.fontSize = curStyle.fontSize;
     el.style.background = curStyle.background;
@@ -253,6 +265,7 @@ setInput(1);
       }
       if (msg.role === 'phone') {
         statusEl.textContent = '%PHONEWAIT%';
+        if (window.__nonWebOS) document.getElementById('codeBox').style.display = 'none';
         return;
       }
       if (msg.clear) {
