@@ -105,6 +105,63 @@ object GuideUi {
         return row
     }
 
+    private fun msxSteps(ctx: Context): List<String> {
+        val ip = TvServer.localIp(ctx)
+        val address = if (ip != null) "$ip:${TvServer.PORT}" else Str.p("الرقم اللي ظاهر في الصفحة الرئيسية", "the address shown on the home screen")
+        return listOf(
+            Str.p("حمّل تطبيق Media Station X على التلفزيون", "Install the Media Station X app on the TV"),
+            Str.p("ادخل على الإعدادات Settings جوه التطبيق", "Open Settings inside the app"),
+            Str.p("اختار Start Parameter", "Choose Start Parameter"),
+            Str.p("اختار Setup وبعدين Continue", "Choose Setup, then Continue"),
+            Str.p("اكتب الرقم ده: $address\nوبعدين اضغط على علامة صح ✓ وبعدين اضغط Yes", "Enter this address: $address\nThen tap the check mark ✓, then tap Yes"),
+            Str.p("اضغط على «افتح صفحة الترجمة» وبعدين Continue", "Tap 'Open Translation Page', then Continue"),
+            Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'")
+        )
+    }
+
+    private fun androidTvSteps(ctx: Context): List<String> = listOf(
+        Str.p("نزّل تطبيق Merso Translator TV على التلفزيون وثبّته", "Download and install the Merso Translator TV app on your TV"),
+        Str.p("افتح التطبيق على التلفزيون وفعّل «العرض فوق التطبيقات» لما يطلبها منك", "Open the app on the TV and allow 'Display over other apps' when it asks"),
+        Str.p("اضغط «تشغيل الترجمة»", "Tap 'Start translation'"),
+        Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'"),
+        Str.p("حوّل التلفزيون على مدخل HDMI بتاع الـPS5 — الترجمة هتظهر فوق اللعبة", "Switch the TV to the PS5 HDMI input — the subtitles will appear over the game")
+    )
+
+    private fun tvAppDownloadButton(ctx: Context): Button = Ui.primaryButton(ctx, Str.p("تحميل تطبيق الشاشة", "Download the TV app")).apply {
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = ctx.dp(2); bottomMargin = ctx.dp(6) }
+        setOnClickListener {
+            try {
+                ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/MersoStore/merso-translator/releases/latest/download/merso-translator-tv.apk")))
+            } catch (_: Exception) {}
+        }
+    }
+
+    // Dedicated setup card for ONE TV type ("lg" / "android_tv"),
+    // used by the screen-type selection flow so each TV gets its own guide.
+    fun buildScreenGuide(ctx: Context, type: String): LinearLayout {
+        val card = Ui.card(ctx)
+        when (type) {
+            "android_tv" -> {
+                card.addView(Ui.cardTitle(ctx, Str.p("شرح تثبيت Android TV / Google TV", "Android TV / Google TV Setup")))
+                val steps = androidTvSteps(ctx)
+                card.addView(stepRow(ctx, 1, steps[0]))
+                card.addView(tvAppDownloadButton(ctx))
+                for ((i, step) in steps.drop(1).withIndex()) card.addView(stepRow(ctx, i + 2, step))
+            }
+            else -> {
+                card.addView(Ui.cardTitle(ctx, Str.p("شرح تثبيت شاشة LG", "LG TV Setup")))
+                for ((i, step) in msxSteps(ctx).withIndex()) card.addView(stepRow(ctx, i + 1, step))
+            }
+        }
+        card.addView(Ui.bodyText(ctx, Str.p("ملحوظة: خلي الموبايل والتلفزيون على نفس شبكة الواي فاي.", "Note: keep the phone and TV on the same Wi-Fi network."), 13f, Ui.MUTED).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, ctx.dp(12), 0, 0)
+        })
+        return card
+    }
+
     private fun buildTvSection(ctx: Context, sectionTv: LinearLayout) {
         fun sectionTitle(t: String) = TextView(ctx).apply {
             text = t
@@ -114,40 +171,13 @@ object GuideUi {
             setPadding(0, ctx.dp(16), 0, ctx.dp(4))
         }
 
-        val ip = TvServer.localIp(ctx)
-        val address = if (ip != null) "$ip:${TvServer.PORT}" else Str.p("الرقم اللي ظاهر في الصفحة الرئيسية", "the address shown on the home screen")
-
-        sectionTv.addView(sectionTitle(Str.p("شاشات LG وسامسونج — عن طريق Media Station X", "LG & Samsung TVs — via Media Station X")))
-        val msxSteps = listOf(
-            Str.p("حمّل تطبيق Media Station X على التلفزيون", "Install the Media Station X app on the TV"),
-            Str.p("ادخل على الإعدادات Settings جوه التطبيق", "Open Settings inside the app"),
-            Str.p("اختار Start Parameter", "Choose Start Parameter"),
-            Str.p("اختار Setup وبعدين Continue", "Choose Setup, then Continue"),
-            Str.p("اكتب الرقم ده: $address\nوبعدين اضغط على علامة صح ✓ وبعدين اضغط Yes", "Enter this address: $address\nThen tap the check mark ✓, then tap Yes"),
-            Str.p("اضغط على «افتح صفحة الترجمة» وبعدين Continue", "Tap 'Open Translation Page', then Continue"),
-            Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'")
-        )
-        for ((i, step) in msxSteps.withIndex()) sectionTv.addView(stepRow(ctx, i + 1, step))
+        sectionTv.addView(sectionTitle(Str.p("شاشات LG — عن طريق Media Station X", "LG TVs — via Media Station X")))
+        for ((i, step) in msxSteps(ctx).withIndex()) sectionTv.addView(stepRow(ctx, i + 1, step))
 
         sectionTv.addView(sectionTitle(Str.p("شاشات Android TV وGoogle TV — عن طريق تطبيق الشاشة", "Android TV & Google TV — via the TV app")))
-        val tvAppSteps = listOf(
-            Str.p("نزّل تطبيق Merso Translator TV على التلفزيون وثبّته", "Download and install the Merso Translator TV app on your TV"),
-            Str.p("افتح التطبيق على التلفزيون وفعّل «العرض فوق التطبيقات» لما يطلبها منك", "Open the app on the TV and allow 'Display over other apps' when it asks"),
-            Str.p("اضغط «تشغيل الترجمة»", "Tap 'Start translation'"),
-            Str.p("اكتب الكود اللي هيظهر على التلفزيون في التطبيق على الموبايل ودوس «حفظ الكود وربط»", "Enter the code shown on the TV into the phone app and tap 'Save Code & Connect'"),
-            Str.p("حوّل التلفزيون على مدخل HDMI بتاع الـPS5 — الترجمة هتظهر فوق اللعبة", "Switch the TV to the PS5 HDMI input — the subtitles will appear over the game")
-        )
+        val tvAppSteps = androidTvSteps(ctx)
         sectionTv.addView(stepRow(ctx, 1, tvAppSteps[0]))
-        sectionTv.addView(Ui.primaryButton(ctx, Str.p("تحميل تطبيق الشاشة", "Download the TV app")).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = ctx.dp(2); bottomMargin = ctx.dp(6) }
-            setOnClickListener {
-                try {
-                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/MersoStore/merso-translator/releases/download/v1.0/merso-translator-tv.apk")))
-                } catch (_: Exception) {}
-            }
-        })
+        sectionTv.addView(tvAppDownloadButton(ctx))
         for ((i, step) in tvAppSteps.drop(1).withIndex()) sectionTv.addView(stepRow(ctx, i + 2, step))
 
         sectionTv.addView(Ui.bodyText(ctx, Str.p("ملحوظة: خلي الموبايل والتلفزيون على نفس شبكة الواي فاي.", "Note: keep the phone and TV on the same Wi-Fi network."), 13f, Ui.MUTED).apply {
@@ -156,61 +186,91 @@ object GuideUi {
         })
     }
 
-    private fun buildPs5Section(ctx: Context, sectionPs5: LinearLayout) {
-        fun sectionTitle(t: String) = TextView(ctx).apply {
-            text = t
-            textSize = 18f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor(Ui.GOLD))
-            setPadding(0, ctx.dp(16), 0, ctx.dp(4))
-        }
+    private fun ps5SectionTitle(ctx: Context, t: String) = TextView(ctx).apply {
+        text = t
+        textSize = 18f
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(Color.parseColor(Ui.GOLD))
+        setPadding(0, ctx.dp(16), 0, ctx.dp(4))
+    }
 
-        sectionPs5.addView(sectionTitle(Str.p("١) إضافة مستخدم ثانٍ", "1) Add a Second User")))
-        sectionPs5.addView(Ui.bodyText(
+    // Online (official PSN) console setup: second PSN user + Remote Play.
+    private fun addOnlinePs5Guide(ctx: Context, parent: LinearLayout) {
+        parent.addView(ps5SectionTitle(ctx, Str.p("١) إضافة مستخدم ثانٍ", "1) Add a Second User")))
+        parent.addView(Ui.bodyText(
             ctx,
             Str.p("الـPS5 بيعامل الجهاز المتصل عن طريق Remote Play كأنه دراع المستخدم ده. لو الموبايل اتصل بحسابك الأساسي، الدراع اللي في إيدك هيفصل من التلفزيون. عشان كده الموبايل بيتصل كمستخدم منفصل، وانت بتكمل لعب بحسابك الأساسي عادي.", "The PS5 treats a device connected over Remote Play as that user's controller. If the phone connects with your main account, the controller in your hands gets disconnected from the TV. So the phone connects as a separate user, and you keep playing with your own account."),
             14f, Ui.SUB
         ))
-        sectionPs5.addView(stepRow(ctx, 1, Str.p("ضيف مستخدم جديد على الـPS5 (من صورة البروفايل في الشاشة الرئيسية: تبديل المستخدم ← إضافة مستخدم)", "Add a new user on the PS5 (from your profile picture on the home screen: Switch User → Add User)")))
-        sectionPs5.addView(stepRow(ctx, 2, Str.p("سجّل دخول للمستخدم ده بحساب PSN. لو معندكش حساب إضافي، اعمله مجانًا؛ مش محتاج PS Plus", "Sign this user in to a PSN account. If you don't have a spare one, create it for free; PS Plus is not needed")))
-        sectionPs5.addView(stepRow(ctx, 3, Str.p("هتستخدم الحساب الثانوي ده في تسجيل دخول PSN على الموبايل كمان", "You'll use this second account for the PSN sign-in on the phone too")))
+        parent.addView(stepRow(ctx, 1, Str.p("ضيف مستخدم جديد على الـPS5 (من صورة البروفايل في الشاشة الرئيسية: تبديل المستخدم ← إضافة مستخدم)", "Add a new user on the PS5 (from your profile picture on the home screen: Switch User → Add User)")))
+        parent.addView(stepRow(ctx, 2, Str.p("سجّل دخول للمستخدم ده بحساب PSN. لو معندكش حساب إضافي، اعمله مجانًا؛ مش محتاج PS Plus", "Sign this user in to a PSN account. If you don't have a spare one, create it for free; PS Plus is not needed")))
+        parent.addView(stepRow(ctx, 3, Str.p("هتستخدم الحساب الثانوي ده في تسجيل دخول PSN على الموبايل كمان", "You'll use this second account for the PSN sign-in on the phone too")))
 
-        sectionPs5.addView(sectionTitle(Str.p("٢) تشغيل Remote Play", "2) Turn On Remote Play")))
-        sectionPs5.addView(stepRow(ctx, 1, Str.p("بدّل للمستخدم الثانوي على الـPS5", "Switch to the second user on the PS5")))
-        sectionPs5.addView(stepRow(ctx, 2, Str.p("روح على الإعدادات ← النظام ← Remote Play", "Go to Settings → System → Remote Play")))
-        sectionPs5.addView(stepRow(ctx, 3, Str.p("شغّل «تمكين Remote Play»", "Turn on 'Enable Remote Play'")))
+        parent.addView(ps5SectionTitle(ctx, Str.p("٢) تشغيل Remote Play", "2) Turn On Remote Play")))
+        parent.addView(stepRow(ctx, 1, Str.p("بدّل للمستخدم الثانوي على الـPS5", "Switch to the second user on the PS5")))
+        parent.addView(stepRow(ctx, 2, Str.p("روح على الإعدادات ← النظام ← Remote Play", "Go to Settings → System → Remote Play")))
+        parent.addView(stepRow(ctx, 3, Str.p("شغّل «تمكين Remote Play»", "Turn on 'Enable Remote Play'")))
 
-        sectionPs5.addView(sectionTitle(Str.p("٣) الإيقاظ من وضع الراحة (اختياري)", "3) Waking from Rest Mode (Optional)")))
-        sectionPs5.addView(Ui.bodyText(
+        parent.addView(ps5SectionTitle(ctx, Str.p("٣) الإيقاظ من وضع الراحة (اختياري)", "3) Waking from Rest Mode (Optional)")))
+        parent.addView(Ui.bodyText(
             ctx,
             Str.p("عشان الموبايل يقدر يصحي الـPS5 لما تبدأ الترجمة وهو في وضع الراحة:", "To let the phone wake the PS5 when you start translation while it is in rest mode:"),
             14f, Ui.SUB
         ))
-        sectionPs5.addView(stepRow(ctx, 1, Str.p("روح على الإعدادات ← النظام ← توفير الطاقة ← الميزات المتاحة في وضع الراحة", "Go to Settings → System → Power Saving → Features Available in Rest Mode")))
-        sectionPs5.addView(stepRow(ctx, 2, Str.p("فعّل «البقاء متصلًا بالإنترنت» و«تمكين تشغيل PS5 من الشبكة»", "Enable 'Stay Connected to the Internet' and 'Enable Turning On PS5 from Network'")))
+        parent.addView(stepRow(ctx, 1, Str.p("روح على الإعدادات ← النظام ← توفير الطاقة ← الميزات المتاحة في وضع الراحة", "Go to Settings → System → Power Saving → Features Available in Rest Mode")))
+        parent.addView(stepRow(ctx, 2, Str.p("فعّل «البقاء متصلًا بالإنترنت» و«تمكين تشغيل PS5 من الشبكة»", "Enable 'Stay Connected to the Internet' and 'Enable Turning On PS5 from Network'")))
+    }
 
-        sectionPs5.addView(sectionTitle(Str.p("٤) الحساب الوهمي — للأجهزة المعدلة بدون PSN", "4) Fake Account — for Modded Consoles without PSN")))
-        sectionPs5.addView(Ui.bodyText(
+    // Modded console setup: fake activation for a local account without PSN.
+    private fun addModdedPs5Guide(ctx: Context, parent: LinearLayout) {
+        parent.addView(ps5SectionTitle(ctx, Str.p("الحساب الوهمي — للأجهزة المعدلة بدون PSN", "Fake Account — for Modded Consoles without PSN")))
+        parent.addView(Ui.bodyText(
             ctx,
             Str.p("لو جهازك معدل والحساب الثانوي محلي وعمره ما اتربط بـPSN، الجهاز هيطلب تسجيل دخول ومش هيشغل الريموت بلاي. التفعيل الوهمي بيحلها من جوه التطبيق: بيفعّل الحساب أوفلاين ويعمل تسجيل دخول وهمي، فالريموت بلاي يشتغل من غير سوني خالص.", "If your console is modded and the second account is local and was never linked to PSN, the console demands a sign-in and Remote Play won't work. Fake activation fixes it from inside the app: it activates the account offline and performs a fake sign-in, so Remote Play works with no Sony at all."),
             14f, Ui.SUB
         ))
-        sectionPs5.addView(Ui.bodyText(
+        parent.addView(Ui.bodyText(
             ctx,
             Str.p("⚠️ قبل ما تبدأ: اعمل نسخة احتياطية من حفظات اللعب (Saves) الأول — تغيير رقم الحساب ممكن يفصل الحفظات عن الحساب. ومتفعّلش الحساب الأساسي لو هو حساب PSN حقيقي متفعل أصلًا؛ الأحسن تعمل مستخدم محلي جديد على الجهاز وتفعّله هو.", "⚠️ Before you start: back up your game saves first — changing the account ID can disassociate saves from the account. And don't activate the main account if it is already a legit PSN-activated account; best to create a new local user on the console and activate that one."),
             14f, "#FFC400"
         ))
-        sectionPs5.addView(stepRow(ctx, 1, Str.p("شغّل الجيلبريك وافتح Payload Manager على الجهاز، واتأكد إن التليفون على نفس شبكة الواي فاي", "Run the jailbreak and open Payload Manager on the console, and make sure the phone is on the same Wi-Fi network")))
-        sectionPs5.addView(stepRow(ctx, 2, Str.p("في التطبيق: ترجمة ← الريموت بلاي ← «تفعيل وهمي (بدون تسجيل سوني)»", "In the app: Translate → Remote Play → 'Fake Activation (no Sony sign-in)'")))
-        sectionPs5.addView(stepRow(ctx, 3, Str.p("اكتب عنوان IP بتاع الجهاز (هتلاقيه في Payload Manager) أو دوس بحث، وبعدين دوس «إرسال أداة التفعيل للجهاز»", "Enter the console IP address (shown in Payload Manager) or tap Search, then tap 'Send activation tool to console'")))
-        sectionPs5.addView(stepRow(ctx, 4, Str.p("اختار الحساب المحلي من القايمة اللي هتظهر عشان يتفعّل ويتسجل وهمي", "Pick the local account from the list that appears to activate it and fake sign it in")))
-        sectionPs5.addView(stepRow(ctx, 5, Str.p("اعمل إعادة تشغيل (Restart) للـPS5 — خطوة إجبارية", "Restart the PS5 — this step is mandatory")))
-        sectionPs5.addView(stepRow(ctx, 6, Str.p("بعد الريستارت سجّل دخول بنفس الحساب اللي فعّلته، وروح الإعدادات ← النظام ← Remote Play وشغّل «Enable Remote Play» وانت داخل بنفس الحساب ده (من سوفت 10.00 الإعداد ده لكل حساب لوحده، ولو مقفول البث هيترفض)", "After the restart, log in with the same account you activated, go to Settings → System → Remote Play and turn ON 'Enable Remote Play' while signed in with this account (since firmware 10.00 this setting is per-user; if it is OFF the stream will be refused)")))
-        sectionPs5.addView(stepRow(ctx, 7, Str.p("خد رقم PIN جديد من «ربط جهاز» (الرقم القديم مش هيشتغل)، وحطه في التطبيق في خطوة الـPIN ودوس حفظ، وبعدين بدء البث", "Get a NEW PIN from 'Link Device' (the old PIN won't work), enter it in the app's PIN step and tap Save, then Start Stream")))
-        sectionPs5.addView(Ui.bodyText(
+        parent.addView(stepRow(ctx, 1, Str.p("شغّل الجيلبريك وافتح Payload Manager على الجهاز، واتأكد إن التليفون على نفس شبكة الواي فاي", "Run the jailbreak and open Payload Manager on the console, and make sure the phone is on the same Wi-Fi network")))
+        parent.addView(stepRow(ctx, 2, Str.p("في التطبيق: ترجمة ← الريموت بلاي ← «تفعيل وهمي (بدون تسجيل سوني)»", "In the app: Translate → Remote Play → 'Fake Activation (no Sony sign-in)'")))
+        parent.addView(stepRow(ctx, 3, Str.p("اكتب عنوان IP بتاع الجهاز (هتلاقيه في Payload Manager) أو دوس بحث، وبعدين دوس «إرسال أداة التفعيل للجهاز»", "Enter the console IP address (shown in Payload Manager) or tap Search, then tap 'Send activation tool to console'")))
+        parent.addView(stepRow(ctx, 4, Str.p("اختار الحساب المحلي من القايمة اللي هتظهر عشان يتفعّل ويتسجل وهمي", "Pick the local account from the list that appears to activate it and fake sign it in")))
+        parent.addView(stepRow(ctx, 5, Str.p("اعمل إعادة تشغيل (Restart) للـPS5 — خطوة إجبارية", "Restart the PS5 — this step is mandatory")))
+        parent.addView(stepRow(ctx, 6, Str.p("بعد الريستارت سجّل دخول بنفس الحساب اللي فعّلته، وروح الإعدادات ← النظام ← Remote Play وشغّل «Enable Remote Play» وانت داخل بنفس الحساب ده (من سوفت 10.00 الإعداد ده لكل حساب لوحده، ولو مقفول البث هيترفض)", "After the restart, log in with the same account you activated, go to Settings → System → Remote Play and turn ON 'Enable Remote Play' while signed in with this account (since firmware 10.00 this setting is per-user; if it is OFF the stream will be refused)")))
+        parent.addView(stepRow(ctx, 7, Str.p("خد رقم PIN جديد من «ربط جهاز» (الرقم القديم مش هيشتغل)، وحطه في التطبيق في خطوة الـPIN ودوس حفظ، وبعدين بدء البث", "Get a NEW PIN from 'Link Device' (the old PIN won't work), enter it in the app's PIN step and tap Save, then Start Stream")))
+        parent.addView(Ui.bodyText(
             ctx,
             Str.p("ملحوظة: خلي الجهاز أوفلاين أو احجب PSN (زي nanoDNS) عشان الجهاز ميكتشفش إنه مش مسجل بجد ويلغي التسجيل الوهمي. ولو البث اترفض بعد كده، دوس «تأكيد التسجيل الوهمي» في صفحة الريموت بلاي — مش هتحتاج تعيد التفعيل من الأول.", "Note: keep the console offline or block PSN (e.g. nanoDNS) so the console doesn't realize it isn't really signed in and clear the fake sign-in. If the stream gets refused later, tap 'Re-confirm Fake Sign-in' on the Remote Play page — you won't need to activate again from scratch."),
             13f, Ui.MUTED
         ))
     }
+
+    // Dedicated setup card for ONE console type ("online" / "modded"),
+    // used by the console-type selection flow.
+    fun buildConsoleGuide(ctx: Context, type: String): LinearLayout {
+        val card = Ui.card(ctx)
+        if (type == "modded") {
+            card.addView(Ui.cardTitle(ctx, Str.p("شرح إعداد الجهاز المعدل", "Modded Console Setup")))
+            addModdedPs5Guide(ctx, card)
+        } else {
+            card.addView(Ui.cardTitle(ctx, Str.p("شرح إعداد الجهاز الأونلاين", "Online Console Setup")))
+            addOnlinePs5Guide(ctx, card)
+        }
+        return card
+    }
+
+    private fun buildPs5Section(ctx: Context, sectionPs5: LinearLayout) {
+        addOnlinePs5Guide(ctx, sectionPs5)
+        sectionPs5.addView(ps5SectionTitle(ctx, Str.p("٤) الحساب الوهمي — للأجهزة المعدلة بدون PSN", "4) Fake Account — for Modded Consoles without PSN")))
+        // The modded guide carries its own title; drop the duplicate by
+        // adding only its body through a holder without the first title.
+        val holder = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        addModdedPs5Guide(ctx, holder)
+        if (holder.childCount > 0) holder.removeViewAt(0)
+        sectionPs5.addView(holder)
+    }
+
 }
