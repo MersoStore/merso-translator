@@ -34,13 +34,13 @@ done
 echo "== aapt2 link =="
 $BT/aapt2 link -o $OUT/base.apk -I $AJAR --manifest $PROJ/app/src/main/AndroidManifest.xml \
   --java $OUT/gen --extra-packages "$PKGS" --auto-add-overlay \
-  --min-sdk-version 26 --target-sdk-version 34 --version-code 53 --version-name 2.1.1 \
+  --min-sdk-version 26 --target-sdk-version 34 --version-code 65 --version-name 2.2.0 \
   $FLATS 2>$OUT/aapt2-link.log || { cat $OUT/aapt2-link.log; exit 1; }
 find $OUT/gen -name "*.java" | head
 
 echo "== kotlinc =="
 CP="$AJAR:$(ls $AND/jars/*.jar | tr '\n' ':')"
-$AND/kotlinc/bin/kotlinc -cp "$CP" -d $OUT/classes \
+$AND/kotlinc/bin/kotlinc -J-Xmx3g -cp "$CP" -d $OUT/classes \
   $(find $PROJ/app/src/main/java -name "*.kt") $(find $OUT/gen -name "*.java") 2>$OUT/kotlinc.log || { cat $OUT/kotlinc.log; exit 1; }
 
 echo "== r8 (obfuscate) / d8 fallback =="
