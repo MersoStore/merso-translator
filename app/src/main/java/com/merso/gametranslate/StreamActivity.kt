@@ -203,7 +203,10 @@ class StreamActivity : Activity() {
             startActivity(android.content.Intent(this, RemotePlayActivity::class.java))
             finish()
         } else {
-            Nav.goHome(this)
+            startActivity(android.content.Intent(this, RemotePlayActivity::class.java).apply {
+                putExtra("to_stream_step", true)
+            })
+            finish()
         }
     }
 }
