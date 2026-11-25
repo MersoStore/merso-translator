@@ -155,6 +155,8 @@ class SonyLoginActivity : Activity() {
 
 
     override fun onBackPressed() {
-        Nav.goHome(this)
+        // Return to whoever opened sign-in (wizard PIN card or Remote Play),
+        // not the main interface.
+        finish()
     }
 }
