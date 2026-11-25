@@ -53,8 +53,29 @@ class ModeActivity : Activity() {
         })
         rpCard.addView(Ui.primaryButton(this, Str.p("ريموت بلاي", "Remote Play")).apply {
             setOnClickListener {
-                startActivity(Intent(this@ModeActivity, MainActivity::class.java))
-                finish()
+                val fullyPaired = Prefs.code(this@ModeActivity).length >= 4 &&
+                    Prefs.pinVerified(this@ModeActivity) && Prefs.registKey(this@ModeActivity).isNotEmpty()
+                when {
+                    Prefs.screenSetupDone(this@ModeActivity) && Prefs.consoleSetupDone(this@ModeActivity) && fullyPaired -> {
+                        // Fully paired: straight to the stream step.
+                        startActivity(Intent(this@ModeActivity, RemotePlayActivity::class.java).apply {
+                            putExtra("to_stream_step", true)
+                        })
+                        finish()
+                    }
+                    !Prefs.screenSetupDone(this@ModeActivity) -> {
+                        // First Remote Play run: pick the TV type and see its setup guide first.
+                        startActivity(Intent(this@ModeActivity, ScreenTypeActivity::class.java))
+                    }
+                    !Prefs.consoleSetupDone(this@ModeActivity) -> {
+                        // TV type done, console type still pending.
+                        startActivity(Intent(this@ModeActivity, ConsoleTypeActivity::class.java))
+                    }
+                    else -> {
+                        // Guides done but pairing incomplete: resume the pairing wizard.
+                        startActivity(Intent(this@ModeActivity, SetupWizardActivity::class.java))
+                    }
+                }
             }
         })
         rpCard.addView(Ui.bodyText(this, Str.p("الترجمة توصل للتلفزيون وانت بتلعب من مكانك", "Translations reach the TV while you play from your couch"), 14f, Ui.MUTED).apply {
