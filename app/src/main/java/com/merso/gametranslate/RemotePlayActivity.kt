@@ -24,6 +24,8 @@ import com.merso.gametranslate.Ui.dp
 class RemotePlayActivity : Activity() {
 
     private lateinit var status: TextView
+    private lateinit var tvCodeInput: EditText
+    private lateinit var tvPairStatus: TextView
     private lateinit var pinInput: EditText
     private lateinit var loginStatus: TextView
     private lateinit var loginBtn: Button
@@ -40,6 +42,13 @@ class RemotePlayActivity : Activity() {
     private lateinit var streamTexture: TextureView
     private lateinit var streamStatus: TextView
     private var streamController: StreamController? = null
+    private val tvPollHandler = Handler(Looper.getMainLooper())
+    private val tvPoll = object : Runnable {
+        override fun run() {
+            refresh()
+            tvPollHandler.postDelayed(this, 1000)
+        }
+    }
     private val hideInPip = mutableListOf<View>()
     private var suppressPip = false
 
@@ -54,6 +63,59 @@ class RemotePlayActivity : Activity() {
         }
 
         addTracked(Ui.header(this, "Remote Play", Str.p("ترجمة عن طريق البث المباشر من الجهاز", "Translation via live stream from your console")))
+
+        // Screen pairing (same card as the wizard's first step), so the
+        // TV can be (re)paired right from this page.
+        TvServer.init(this)
+        TvServer.start()
+        if (Prefs.code(this).length >= 4) MqttSender.connect(this)
+        val cTv = Ui.card(this)
+        cTv.addView(Ui.cardTitle(this, Str.p("ربط الشاشة", "Screen Pairing")))
+        cTv.addView(Ui.bodyText(this, Str.p("اكتب كود الربط اللي ظاهر على صفحة التلفزيون", "Enter the pairing code shown on the TV page")))
+        tvCodeInput = Ui.inputField(this, Str.p("مثال: 123456", "e.g. 123456"))
+        tvCodeInput.setText(Prefs.code(this))
+        cTv.addView(tvCodeInput)
+        cTv.addView(Ui.primaryButton(this, Str.p("حفظ الكود وربط", "Save Code & Connect")).apply {
+            setOnClickListener {
+                val c = tvCodeInput.text.toString().trim()
+                if (c.length < 4) {
+                    Toast.makeText(this@RemotePlayActivity, Str.p("اكتب كود الربط الأول", "Enter the pairing code first"), Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                Prefs.setCode(this@RemotePlayActivity, c)
+                MqttSender.disconnect()
+                MqttSender.connect(this@RemotePlayActivity)
+                Toast.makeText(this@RemotePlayActivity, Str.p("تم الحفظ، بيتصل بالتلفزيون...", "Saved, connecting to the TV..."), Toast.LENGTH_SHORT).show()
+                refresh()
+            }
+        })
+        cTv.addView(Ui.secondaryButton(this, Str.p("إلغاء الربط", "Unlink")).apply {
+            setOnClickListener {
+                Prefs.setCode(this@RemotePlayActivity, "")
+                tvCodeInput.setText("")
+                MqttSender.disconnect()
+                refresh()
+                Toast.makeText(this@RemotePlayActivity, Str.p("اتلغى الربط ✓", "Unlinked ✓"), Toast.LENGTH_SHORT).show()
+            }
+        })
+        cTv.addView(Ui.secondaryButton(this, Str.p("شرح ربط الشاشة", "Screen Pairing Guide")).apply {
+            setOnClickListener {
+                startActivity(Intent(this@RemotePlayActivity, GuideCardActivity::class.java).putExtra("guide", "screen"))
+            }
+        })
+        tvPairStatus = Ui.bodyText(this, "", 14f, Ui.MUTED).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(6), 0, 0)
+        }
+        cTv.addView(tvPairStatus)
+        val tvIp = TvServer.localIp(this)
+        cTv.addView(Ui.bodyText(
+            this,
+            if (tvIp != null) Str.p("رقم الربط بتاعك: $tvIp:${TvServer.PORT}", "Your pairing address: $tvIp:${TvServer.PORT}")
+            else Str.p("وصّل الموبايل بالواي فاي عشان يظهر رقم الربط", "Connect to Wi-Fi to show your pairing address"),
+            15f, Ui.GOLD
+        ).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
+        addTracked(cTv)
 
         // Step 1: Sony login
         val c1 = Ui.card(this)
@@ -280,7 +342,7 @@ class RemotePlayActivity : Activity() {
             })
             return item
         }
-        bar.addView(tabItem("💬", Str.p("ترجمة", "Translate"), true, null) { goToTab(0) })
+        bar.addView(tabItem("💬", Str.p("ترجمة", "Translate"), true, null) { scroll.post { scroll.scrollTo(0, c3.top) } })
         bar.addView(tabItem("📖", Str.p("دليل", "Guide"), false, null) { goToTab(1) })
         bar.addView(tabItem("⚙️", Str.p("إعدادات", "Settings"), false, null) { goToTab(2) })
         bar.addView(tabItem("▶", Str.p("يوتيوب", "YouTube"), false, "#FF2E2E") {
@@ -301,6 +363,12 @@ class RemotePlayActivity : Activity() {
         }
         setContentView(wrapper)
         Ui.animateChildren(root)
+        // Coming from the pairing wizard: land on Step 3 (stream screen).
+        // The stream is not auto-started; the user taps Start himself.
+        if (intent.getBooleanExtra("to_stream_step", false)) {
+            scroll.post { scroll.scrollTo(0, c3.top) }
+        }
+        tvPollHandler.post(tvPoll)
     }
 
     // One-shot: translate everything on the current frame, each line shown
@@ -515,6 +583,7 @@ class RemotePlayActivity : Activity() {
     }
 
     override fun onDestroy() {
+        tvPollHandler.removeCallbacks(tvPoll)
         super.onDestroy()
         if (isFinishing && !StreamHolder.handedOff) {
             streamController?.stop()
@@ -701,6 +770,15 @@ class RemotePlayActivity : Activity() {
     }
 
     private fun refresh() {
+        if (::tvPairStatus.isInitialized) {
+            tvPairStatus.text = when {
+                MqttSender.tvOnline -> Str.p("التلفزيون: متصل ✓", "TV: connected ✓")
+                Prefs.code(this).length < 4 -> Str.p("لسه مفيش كود ربط", "No pairing code yet")
+                MqttSender.connected -> Str.p("التلفزيون: مستني يظهر...", "TV: waiting to appear...")
+                else -> Str.p("الكود محفوظ، بيتصل بالتلفزيون...", "Code saved, connecting to the TV...")
+            }
+            tvPairStatus.setTextColor(Color.parseColor(if (MqttSender.tvOnline) "#2ED573" else Ui.MUTED))
+        }
         if (::loginStatus.isInitialized) {
             if (Prefs.signedIn(this)) {
                 loginStatus.text = Str.p("✓ تم تسجيل الدخول", "✓ Signed in")
@@ -759,7 +837,7 @@ class RemotePlayActivity : Activity() {
         if (streamController?.running == true) {
             handoffToMain()
         } else {
-            Nav.goHome(this)
+            goToTab(1)
         }
     }
 }
