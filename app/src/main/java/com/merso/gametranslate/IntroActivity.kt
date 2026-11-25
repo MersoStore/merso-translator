@@ -29,7 +29,7 @@ class IntroActivity : Activity() {
         Triple(
             "📺",
             Str.p("اربط التلفزيون مرة واحدة", "Pair Your TV Once"),
-            Str.p("على شاشات LG وسامسونج افتح Media Station X وحط رقم الربط اللي هتلاقيه في البرنامج. وعلى شاشات Android TV ثبّت تطبيق Merso Translator TV على التلفزيون. وبعدين اكتب الكود اللي هيظهر على التلفزيون هنا في الموبايل.", "On LG & Samsung TVs, open Media Station X and enter the pairing address from this app. On Android TV, install the Merso Translator TV app on the TV. Then type the code shown on the TV into the phone.")
+            Str.p("على شاشات LG افتح Media Station X وحط رقم الربط اللي هتلاقيه في البرنامج. وعلى شاشات Android TV ثبّت تطبيق Merso Translator TV على التلفزيون. وبعدين اكتب الكود اللي هيظهر على التلفزيون هنا في الموبايل.", "On LG TVs, open Media Station X and enter the pairing address from this app. On Android TV, install the Merso Translator TV app on the TV. Then type the code shown on the TV into the phone.")
         ),
         Triple(
             "🕹️",
