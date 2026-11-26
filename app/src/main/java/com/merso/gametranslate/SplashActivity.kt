@@ -25,6 +25,7 @@ class SplashActivity : Activity() {
         }
         // Anonymous daily-active-device ping (random UUID, no personal data)
         Stats.pingDaily(this)
+        Translator.warmUp()
 
         val root = FrameLayout(this).apply {
             background = GradientDrawable(
