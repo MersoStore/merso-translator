@@ -76,6 +76,8 @@ class StreamController(
     private var lastRegistKey: ByteArray? = null
     private var lastMorning: ByteArray? = null
     private var sessionRetries = 0
+    // Auto-reconnect attempts after a live stream drops (reset on connect).
+    private var reconnects = 0
     // Bumped on every start()/stop() so a delayed quit-handler or a
     // pending auto-retry from a previous run can't fire afterwards.
     @Volatile private var startGeneration = 0
@@ -288,6 +290,7 @@ class StreamController(
                     is ConnectedEvent -> {
                         gotConnected = true
                         sessionRetries = 0
+                        reconnects = 0
                         // The pairing keys just proved themselves against
                         // the console: mark them verified and remember
                         // the console's current IP.
@@ -302,8 +305,31 @@ class StreamController(
                     is QuitEvent -> {
                         ocrRunning = false
                         if (gotConnected) {
-                            // Stream was running and then quit: report and
-                            // clean up. Pairing keys are never touched.
+                            // Stream was running and then quit: dispose the
+                            // dead session and reconnect automatically
+                            // instead of leaving a zombie session that
+                            // blocks every later start. Pairing keys are
+                            // never touched.
+                            val gen = startGeneration
+                            val dead = session
+                            session = null
+                            gotConnected = false
+                            connecting = false
+                            lifecycleExec.execute {
+                                try { dead?.stop() } catch (_: Exception) {}
+                                try { dead?.dispose() } catch (_: Exception) {}
+                            }
+                            if (running && reconnects < 5) {
+                                reconnects++
+                                val delay = 3000L * reconnects
+                                main.postDelayed({
+                                    if (gen != startGeneration || !running || session != null) return@postDelayed
+                                    try { discovery?.dispose() } catch (_: Exception) {}
+                                    discovery = null
+                                    connecting = false
+                                    startDiscovery()
+                                }, delay)
+                            }
                             val acctB64 = Prefs.accountId(ctx)
                             val masked = if (acctB64.length >= 4) "…${acctB64.takeLast(4)}" else "—"
                             val keysKind = when {
@@ -315,7 +341,7 @@ class StreamController(
                                 " [تشخيص: كود الجهاز ${readAppReason() ?: "—"} | الحساب $masked | $keysKind]",
                                 " [diag: console code ${readAppReason() ?: "—"} | account $masked | $keysKind]"
                             )
-                            setStatus(Str.p("البث وقف: ${event.reasonString ?: event.reason}$diag", "Stream stopped: ${event.reasonString ?: event.reason}$diag"))
+                            setStatus(if (running && reconnects in 1..5) Str.p("البث فصل — بيحاول يتصل تاني تلقائيًا...$diag", "Stream dropped — reconnecting automatically...$diag") else Str.p("البث وقف: ${event.reasonString ?: event.reason}$diag", "Stream stopped: ${event.reasonString ?: event.reason}$diag"))
                         } else {
                             // Session refused BEFORE connecting. Handle it
                             // after a short delay so the native chiaki log
