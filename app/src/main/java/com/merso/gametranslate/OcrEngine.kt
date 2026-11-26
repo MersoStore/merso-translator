@@ -6,13 +6,27 @@ import android.graphics.Rect
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 object OcrEngine {
     private val recognizer by lazy {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     }
     private val exec = Executors.newSingleThreadExecutor()
+    // Translations run on their own pool so a slow network reply never
+    // blocks frame processing or other boxes' translations.
+    private val translateExec = Executors.newFixedThreadPool(3)
+    // Speculative (cache-warming) translations run alone on a 1-slot
+    // discard queue: on a static screen with wobbling reads they can
+    // never flood the network or starve real translations/stream.
+    private val specExec = ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue(1), ThreadPoolExecutor.DiscardPolicy()
+    )
+    @Volatile private var lastSpecAt: Long = 0
 
     @Volatile var lastRawText: String = ""
     @Volatile var lastError: String = ""
@@ -40,6 +54,9 @@ object OcrEngine {
         @Volatile var goneCount: Int = 0
         @Volatile var lastColor: String? = null
         @Volatile var lastLines: List<FloatArray> = emptyList()
+        // Speculative-translation throttle: last text warmed and when.
+        @Volatile var specText: String = ""
+        @Volatile var specAt: Long = 0
     }
 
     private val mainState = Stabilizer()
@@ -311,11 +328,13 @@ object OcrEngine {
                         .flatMap { it.lines }
                         .mapNotNull { l -> l.boundingBox?.let { rect -> l to rect } }
                         .sortedBy { it.second.top }
-                    for ((line, rect) in lines) {
-                        if (count >= 20) break
+                    val candidates = lines.filter { it.first.text.trim().count { c -> c.isLetter() } >= 2 }.take(20)
+                    val joined = candidates.joinToString("\n") { it.first.text.trim() }
+                    val translatedLines = if (joined.isBlank()) emptyList() else Translator.translateEnToAr(joined).split("\n")
+                    for ((idx, pair) in candidates.withIndex()) {
+                        val (line, rect) = pair
                         val txt = line.text.trim()
-                        if (txt.count { it.isLetter() } < 2) continue
-                        val ar = Translator.translateEnToAr(txt)
+                        val ar = translatedLines.getOrNull(idx)?.trim() ?: ""
                         if (ar.isBlank()) continue
                         val cx = ((rect.left + rect.right) / 2f / scaled.width).coerceIn(0f, 1f)
                         val cy = ((rect.top + rect.bottom) / 2f / scaled.height).coerceIn(0f, 1f)
@@ -362,11 +381,10 @@ object OcrEngine {
         if (immediate) {
             val now = System.currentTimeMillis()
             if (similar(en, st.lastText) && now - st.lastSentAt < 15000) return
-            st.lastText = en
-            st.lastSentAt = now
-            exec.execute {
+            synchronized(st) { st.lastText = en; st.lastSentAt = now }
+            translateExec.execute {
                 val ar = Translator.translateEnToAr(en)
-                if (ar.isNotBlank()) onResult(en, ar, color, lines)
+                synchronized(st) { if (ar.isNotBlank() && st.lastText == en) onResult(en, ar, color, lines) }
             }
             return
         }
@@ -383,9 +401,9 @@ object OcrEngine {
                 val keepText = st.lastText
                 val keepColor = st.lastColor
                 val keepLines = st.lastLines
-                exec.execute {
+                translateExec.execute {
                     val ar = Translator.translateEnToAr(keepText)
-                    if (ar.isNotBlank()) onRefresh(keepText, ar, keepColor, keepLines)
+                    synchronized(st) { if (ar.isNotBlank() && st.lastText == keepText) onRefresh(keepText, ar, keepColor, keepLines) }
                 }
             }
             return
@@ -412,15 +430,23 @@ object OcrEngine {
             st.candidateSince = nowMs
             st.candidateColor = color
             st.candidateLines = lines
+            // Start translating right away in the background: by the time
+            // the text is confirmed stable, the result is already cached
+            // and shows instantly instead of waiting on the network then.
+            if (needReads > 1 && en.length >= 12 && en != st.specText && nowMs - lastSpecAt >= 1200) {
+                st.specText = en
+                st.specAt = nowMs
+                lastSpecAt = nowMs
+                specExec.execute { Translator.translateEnToAr(en) }
+            }
             if (prevCount == 1 && prev.length >= 12 && prevAge >= 1000 && !similar(prev, st.lastText)) {
-                st.lastText = prev
-                st.lastSentAt = System.currentTimeMillis()
+                synchronized(st) { st.lastText = prev; st.lastSentAt = System.currentTimeMillis() }
                 st.shown = true
                 st.lastColor = prevColor
                 st.lastLines = prevLines
-                exec.execute {
+                translateExec.execute {
                     val ar = Translator.translateEnToAr(prev)
-                    if (ar.isNotBlank()) onResult(prev, ar, prevColor, prevLines)
+                    synchronized(st) { if (ar.isNotBlank() && st.lastText == prev) onResult(prev, ar, prevColor, prevLines) }
                 }
             }
             // Fast response mode accepts the very first read.
@@ -436,14 +462,13 @@ object OcrEngine {
         val toSend = st.candidate
         val sendColor = color ?: st.candidateColor
         val sendLines = st.candidateLines
-        st.lastText = toSend
-        st.lastSentAt = now
+        synchronized(st) { st.lastText = toSend; st.lastSentAt = now }
         st.shown = true
         st.lastColor = sendColor
         st.lastLines = sendLines
-        exec.execute {
+        translateExec.execute {
             val ar = Translator.translateEnToAr(toSend)
-            if (ar.isNotBlank()) onResult(toSend, ar, sendColor, sendLines)
+            synchronized(st) { if (ar.isNotBlank() && st.lastText == toSend) onResult(toSend, ar, sendColor, sendLines) }
         }
     }
 
