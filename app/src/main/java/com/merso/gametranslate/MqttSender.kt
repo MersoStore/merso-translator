@@ -108,15 +108,18 @@ object MqttSender {
     // Tells the TV to hide one box group's captions (the box id itself and
     // its per-line ids group*10 .. group*10+9).
     fun sendClearBox(ctx: Context, group: Int) {
+        exec.execute { publishClearBox(ctx, group) }
+    }
+
+    // Runs on the MQTT exec thread.
+    private fun publishClearBox(ctx: Context, group: Int) {
         val code = Prefs.code(ctx)
         if (code.length < 4) return
-        exec.execute {
-            try {
-                if (client?.isConnected != true) connect(ctx)
-                client?.publish(topic(code, "sub"), MqttMessage("""{"clear":1,"box":$group}""".toByteArray()).apply { qos = 0 })
-            } catch (e: Exception) {
-                Log.e(TAG, "clear box publish failed", e)
-            }
+        try {
+            if (client?.isConnected != true) connect(ctx)
+            client?.publish(topic(code, "sub"), MqttMessage("""{"clear":1,"box":$group}""".toByteArray()).apply { qos = 0 })
+        } catch (e: Exception) {
+            Log.e(TAG, "clear box publish failed", e)
         }
     }
 
@@ -127,17 +130,22 @@ object MqttSender {
     fun sendLines(ctx: Context, group: Int, box: FloatArray, en: String, ar: String, color: String?, lines: List<FloatArray>, keep: Boolean = false, size: String? = null) {
         val arLines = ar.split("\n")
         val enLines = en.split("\n")
-        // keep=true: sticky refresh of the caption already on screen —
-        // resend without clearing first so it never flickers.
-        if (!keep) sendClearBox(ctx, group)
-        if (lines.isNotEmpty() && lines.size == arLines.size) {
-            for (j in lines.indices) {
-                val fx = box[0] + lines[j][0] * (box[2] - box[0])
-                val fy = box[1] + lines[j][1] * (box[3] - box[1])
-                sendCaption(ctx, enLines.getOrElse(j) { en }, arLines[j], group * 10 + j, fx, fy, color, size)
+        // The whole group update (clear + lines) runs as ONE exec task so
+        // two captions racing on the translation pool can never interleave
+        // their clears and lines and leave two sentences on top of each other.
+        exec.execute {
+            // keep=true: sticky refresh of the caption already on screen —
+            // resend without clearing first so it never flickers.
+            if (!keep) publishClearBox(ctx, group)
+            if (lines.isNotEmpty() && lines.size == arLines.size) {
+                for (j in lines.indices) {
+                    val fx = box[0] + lines[j][0] * (box[2] - box[0])
+                    val fy = box[1] + lines[j][1] * (box[3] - box[1])
+                    publishCaption(ctx, enLines.getOrElse(j) { en }, arLines[j], group * 10 + j, fx, fy, color, size)
+                }
+            } else {
+                publishCaption(ctx, en, ar, group, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f, color, size)
             }
-        } else {
-            sendCaption(ctx, en, ar, group, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f, color, size)
         }
     }
 
@@ -147,27 +155,30 @@ object MqttSender {
     // color ("#RRGGBB") when non-null: the TV shows the caption in that
     // color (auto mode = the game's own text color sampled from the frame).
     fun sendCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float, color: String?, size: String? = null) {
+        exec.execute { publishCaption(ctx, en, ar, box, x, y, color, size) }
+    }
+
+    // Runs on the MQTT exec thread.
+    private fun publishCaption(ctx: Context, en: String, ar: String, box: Int, x: Float, y: Float, color: String?, size: String? = null) {
         val code = Prefs.code(ctx)
         if (code.length < 4 || ar.isBlank()) return
-        exec.execute {
-            try {
-                if (client?.isConnected != true) connect(ctx)
-                val payload = JSONObject().apply {
-                    put("en", en)
-                    put("ar", ar)
-                    put("t", System.currentTimeMillis())
-                    if (box >= 0) {
-                        put("box", box)
-                        put("x", x.toDouble())
-                        put("y", y.toDouble())
-                    }
-                    if (color != null) put("color", color)
-                    if (size != null) put("size", size)
-                }.toString()
-                client?.publish(topic(code, "sub"), MqttMessage(payload.toByteArray()).apply { qos = 0 })
-            } catch (e: Exception) {
-                Log.e(TAG, "publish failed", e)
-            }
+        try {
+            if (client?.isConnected != true) connect(ctx)
+            val payload = JSONObject().apply {
+                put("en", en)
+                put("ar", ar)
+                put("t", System.currentTimeMillis())
+                if (box >= 0) {
+                    put("box", box)
+                    put("x", x.toDouble())
+                    put("y", y.toDouble())
+                }
+                if (color != null) put("color", color)
+                if (size != null) put("size", size)
+            }.toString()
+            client?.publish(topic(code, "sub"), MqttMessage(payload.toByteArray()).apply { qos = 0 })
+        } catch (e: Exception) {
+            Log.e(TAG, "publish failed", e)
         }
     }
 
