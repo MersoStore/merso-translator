@@ -34,7 +34,7 @@ done
 echo "== aapt2 link =="
 $BT/aapt2 link -o $OUT/base.apk -I $AJAR --manifest $PROJ/app/src/main/AndroidManifest.xml \
   --java $OUT/gen --extra-packages "$PKGS" --auto-add-overlay \
-  --min-sdk-version 26 --target-sdk-version 34 --version-code 65 --version-name 2.2.0 \
+  --min-sdk-version 26 --target-sdk-version 34 --version-code 72 --version-name 2.2.1 \
   $FLATS 2>$OUT/aapt2-link.log || { cat $OUT/aapt2-link.log; exit 1; }
 find $OUT/gen -name "*.java" | head
 
